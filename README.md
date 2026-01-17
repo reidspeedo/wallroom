@@ -31,6 +31,27 @@ A simple, always-on web dashboard for live room availability and instant booking
 - pnpm (or npm/yarn)
 - PostgreSQL database
 
+### Docker Quickstart (Recommended)
+
+If you want a one-command setup with PostgreSQL included:
+
+```bash
+docker compose up --build
+```
+
+Then open http://localhost:3000 and complete the `/setup` flow.
+
+Optional seed data:
+
+```bash
+docker compose exec app pnpm db:seed
+```
+
+Notes:
+- Update `SESSION_SECRET` in `docker-compose.yml` before using in production.
+- If you already have a local `.env`, Docker uses the container settings instead.
+- Docker uses `prisma db push` on startup to avoid interactive migration prompts.
+
 ### Installation
 
 1. **Clone the repository**

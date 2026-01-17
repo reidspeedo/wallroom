@@ -1,0 +1,39 @@
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: wallroom
+      POSTGRES_PASSWORD: wallroom
+      POSTGRES_DB: wallboard
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wallroom -d wallboard"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    working_dir: /app
+    environment:
+      DATABASE_URL: "postgresql://wallroom:wallroom@db:5432/wallboard?schema=public"
+      PRISMA_CLIENT_ENGINE_TYPE: "library"
+      SESSION_SECRET: "change-me-please-change-me-32-chars"
+      NEXT_PUBLIC_BASE_URL: "http://localhost:3000"
+    ports:
+      - "3000:3000"
+    volumes:
+      - /Users/reid/Documents/Projects/Code/wallroom/.cursor:/app/.cursor
+    depends_on:
+      db:
+        condition: service_healthy
+    entrypoint: ["node", "scripts/docker-start.js"]
+
+volumes:
+  db_data:
+
