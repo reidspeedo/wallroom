@@ -69,12 +69,12 @@ export default function BoardPage({
   useEffect(() => {
     loadBoardState();
 
-    // Set up polling based on settings
-    const pollInterval = (boardState?.pollIntervalSeconds || 10) * 1000;
+    // Set up polling (default 10 seconds)
+    const pollInterval = 10 * 1000;
     const interval = setInterval(loadBoardState, pollInterval);
 
     return () => clearInterval(interval);
-  }, [token, boardState?.pollIntervalSeconds]);
+  }, [token]);
 
   const loadBoardState = async () => {
     try {
