@@ -19,6 +19,10 @@ export async function GET() {
         color: room.color,
         isActive: room.isActive,
         displayOrder: room.displayOrder,
+        layoutX: room.layoutX,
+        layoutY: room.layoutY,
+        layoutW: room.layoutW,
+        layoutH: room.layoutH,
         capacity: room.capacity,
         createdAt: room.createdAt.toISOString(),
         updatedAt: room.updatedAt.toISOString()
@@ -63,6 +67,10 @@ export async function POST(request: NextRequest) {
         description: description?.trim() || null,
         color: color || null,
         displayOrder,
+        layoutX: 0,
+        layoutY: 0,
+        layoutW: 20,
+        layoutH: 20,
         isActive: true
       }
     });
@@ -74,7 +82,11 @@ export async function POST(request: NextRequest) {
         description: room.description,
         color: room.color,
         isActive: room.isActive,
-        displayOrder: room.displayOrder
+        displayOrder: room.displayOrder,
+        layoutX: room.layoutX,
+        layoutY: room.layoutY,
+        layoutW: room.layoutW,
+        layoutH: room.layoutH
       }
     });
   } catch (error) {

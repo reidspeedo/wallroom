@@ -22,12 +22,39 @@ export async function GET(
     await expireOldBookings();
 
     const now = new Date();
+    const dayStart = new Date(now);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(now);
+    dayEnd.setHours(23, 59, 59, 999);
 
     // Get all active rooms
     const rooms = await prisma.room.findMany({
       where: { isActive: true },
       orderBy: [{ displayOrder: 'asc' }, { createdAt: 'asc' }]
     });
+
+    const roomIds = rooms.map((room) => room.id);
+    const dayBookings = await prisma.booking.findMany({
+      where: {
+        roomId: { in: roomIds },
+        status: 'active',
+        OR: [
+          { startTime: { gte: dayStart, lte: dayEnd } },
+          { endTime: { gte: dayStart, lte: dayEnd } },
+          { startTime: { lt: dayStart }, endTime: { gt: dayEnd } }
+        ]
+      },
+      orderBy: { startTime: 'asc' }
+    });
+
+    const bookingsByRoom = dayBookings.reduce<Record<string, typeof dayBookings>>(
+      (acc, booking) => {
+        acc[booking.roomId] = acc[booking.roomId] || [];
+        acc[booking.roomId].push(booking);
+        return acc;
+      },
+      {}
+    );
 
     // Get status for each room
     const roomsWithStatus = await Promise.all(
@@ -42,6 +69,16 @@ export async function GET(
           name: room.name,
           color: room.color,
           isActive: room.isActive,
+          layoutX: room.layoutX,
+          layoutY: room.layoutY,
+          layoutW: room.layoutW,
+          layoutH: room.layoutH,
+          dayBookings: (bookingsByRoom[room.id] || []).map((booking) => ({
+            id: booking.id,
+            title: booking.title,
+            startTime: booking.startTime.toISOString(),
+            endTime: booking.endTime.toISOString()
+          })),
           ...roomStatus
         };
       })
@@ -51,7 +88,8 @@ export async function GET(
       serverTime: now.toISOString(),
       rooms: roomsWithStatus,
       bookingDurations: settings.bookingDurations,
-      extendIncrements: settings.extendIncrements
+      extendIncrements: settings.extendIncrements,
+      layoutColumns: settings.layoutColumns
     });
   } catch (error) {
     console.error('Board state error:', error);

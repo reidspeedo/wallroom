@@ -16,6 +16,7 @@ model UserSetting {
   adminPasswordHash     String   @map("admin_password_hash")
   boardPublicToken      String   @unique @map("board_public_token")
   pollIntervalSeconds   Int      @default(10) @map("poll_interval_seconds")
+  layoutColumns         Int      @default(3) @map("layout_columns")
   timeZone              String?  @map("time_zone")
   bookingDurations      Int[]    @default([15, 30, 60, 90, 120]) @map("booking_durations")
   extendIncrements      Int[]    @default([15, 30]) @map("extend_increments")
@@ -33,6 +34,10 @@ model Room {
   color        String?   @db.VarChar(20)
   isActive     Boolean   @default(true) @map("is_active")
   displayOrder Int       @default(0) @map("display_order")
+  layoutX      Int       @default(0) @map("layout_x")
+  layoutY      Int       @default(0) @map("layout_y")
+  layoutW      Int       @default(20) @map("layout_w")
+  layoutH      Int       @default(20) @map("layout_h")
   capacity     Int?
   bookings     Booking[]
 

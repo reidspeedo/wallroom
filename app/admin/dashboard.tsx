@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { LayoutEditor } from '@/components/layout-editor';
 import {
   Card,
   CardContent,
@@ -29,6 +30,10 @@ interface Room {
   isActive: boolean;
   displayOrder: number;
   capacity?: number | null;
+  layoutX: number;
+  layoutY: number;
+  layoutW: number;
+  layoutH: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -38,6 +43,7 @@ interface Settings {
   pollIntervalSeconds: number;
   bookingDurations: number[];
   extendIncrements: number[];
+  layoutColumns: number;
   boardPublicUrl: string;
 }
 
@@ -47,6 +53,19 @@ export default function AdminDashboard() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsDraft, setSettingsDraft] = useState({
+    timeZone: '',
+    pollIntervalSeconds: 10,
+    bookingDurations: '',
+    extendIncrements: '',
+    layoutColumns: 3
+  });
+  const [activeLayoutRoomId, setActiveLayoutRoomId] = useState<string | null>(
+    null
+  );
+  const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 });
+  const layoutContainerRef = useRef<HTMLDivElement | null>(null);
 
   // Room form state
   const [isAddingRoom, setIsAddingRoom] = useState(false);
@@ -56,6 +75,20 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     loadData();
+  }, []);
+
+  // Update canvas size based on container
+  useEffect(() => {
+    const updateCanvasSize = () => {
+      if (layoutContainerRef.current) {
+        const rect = layoutContainerRef.current.getBoundingClientRect();
+        setCanvasSize({ width: rect.width, height: 600 });
+      }
+    };
+
+    updateCanvasSize();
+    window.addEventListener('resize', updateCanvasSize);
+    return () => window.removeEventListener('resize', updateCanvasSize);
   }, []);
 
   const loadData = async () => {
@@ -78,6 +111,13 @@ export default function AdminDashboard() {
 
       setRooms(roomsData.rooms);
       setSettings(settingsData);
+      setSettingsDraft({
+        timeZone: settingsData.timeZone || '',
+        pollIntervalSeconds: settingsData.pollIntervalSeconds,
+        bookingDurations: settingsData.bookingDurations.join(', '),
+        extendIncrements: settingsData.extendIncrements.join(', '),
+        layoutColumns: settingsData.layoutColumns ?? 3
+      });
     } catch (err) {
       setError('Failed to load data');
     } finally {
@@ -114,6 +154,165 @@ export default function AdminDashboard() {
       setError(err instanceof Error ? err.message : 'Failed to add room');
     }
   };
+
+  const parseNumberList = (value: string) => {
+    const numbers = value
+      .split(',')
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0)
+      .map((item) => Number(item));
+
+    if (
+      numbers.length === 0 ||
+      numbers.some((num) => Number.isNaN(num) || num <= 0)
+    ) {
+      return null;
+    }
+
+    return numbers;
+  };
+
+  const handleSaveSettings = async () => {
+    setError('');
+    setSettingsSaving(true);
+
+    const bookingDurations = parseNumberList(settingsDraft.bookingDurations);
+    const extendIncrements = parseNumberList(settingsDraft.extendIncrements);
+
+    if (!bookingDurations || !extendIncrements) {
+      setError('Settings lists must be valid comma-separated numbers');
+      setSettingsSaving(false);
+      return;
+    }
+
+    if (settingsDraft.pollIntervalSeconds <= 0) {
+      setError('Polling interval must be greater than 0');
+      setSettingsSaving(false);
+      return;
+    }
+
+    if (settingsDraft.layoutColumns <= 0) {
+      setError('Layout columns must be at least 1');
+      setSettingsSaving(false);
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/admin/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          timeZone: settingsDraft.timeZone || null,
+          pollIntervalSeconds: settingsDraft.pollIntervalSeconds,
+          bookingDurations,
+          extendIncrements,
+          layoutColumns: settingsDraft.layoutColumns
+        })
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to update settings');
+      }
+
+      await loadData();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Failed to update settings'
+      );
+    } finally {
+      setSettingsSaving(false);
+    }
+  };
+
+  const handleMoveRoom = async (roomId: string, direction: 'up' | 'down') => {
+    const sortedRooms = [...rooms].sort(
+      (a, b) => a.displayOrder - b.displayOrder
+    );
+    const currentIndex = sortedRooms.findIndex((room) => room.id === roomId);
+    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+
+    if (
+      currentIndex === -1 ||
+      targetIndex < 0 ||
+      targetIndex >= sortedRooms.length
+    ) {
+      return;
+    }
+
+    const currentRoom = sortedRooms[currentIndex];
+    const targetRoom = sortedRooms[targetIndex];
+
+    try {
+      const updates = [
+        fetch(`/api/admin/rooms/${currentRoom.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ displayOrder: targetRoom.displayOrder })
+        }),
+        fetch(`/api/admin/rooms/${targetRoom.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ displayOrder: currentRoom.displayOrder })
+        })
+      ];
+
+      const responses = await Promise.all(updates);
+      if (responses.some((res) => !res.ok)) {
+        throw new Error('Failed to update room order');
+      }
+
+      await loadData();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Failed to update room order'
+      );
+    }
+  };
+
+  const updateRoomLayout = (
+    roomId: string,
+    updates: Partial<Pick<Room, 'layoutX' | 'layoutY' | 'layoutW' | 'layoutH'>>
+  ) => {
+    setRooms((prev) =>
+      prev.map((room) =>
+        room.id === roomId
+          ? {
+              ...room,
+              ...updates
+            }
+          : room
+      )
+    );
+  };
+
+  const handleRoomLayoutUpdate = async (
+    roomId: string,
+    updates: Partial<Pick<Room, 'layoutX' | 'layoutY' | 'layoutW' | 'layoutH'>>
+  ) => {
+    // Update local state immediately for responsive UI
+    updateRoomLayout(roomId, updates);
+
+    // Persist to server
+    try {
+      const response = await fetch(`/api/admin/rooms/${roomId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update room layout');
+      }
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Failed to update room layout'
+      );
+      // Reload data on error to revert
+      await loadData();
+    }
+  };
+
 
   const handleToggleActive = async (roomId: string, isActive: boolean) => {
     try {
@@ -166,6 +365,8 @@ export default function AdminDashboard() {
       </div>
     );
   }
+
+  const activeLayoutRoom = rooms.find((room) => room.id === activeLayoutRoomId);
 
   return (
     <div className="min-h-screen bg-gray-50 p-4">
@@ -232,7 +433,7 @@ export default function AdminDashboard() {
               <div>
                 <CardTitle>Meeting Rooms</CardTitle>
                 <CardDescription>
-                  Create and manage your bookable rooms
+                  Create rooms and configure their layout order
                 </CardDescription>
               </div>
               <Dialog open={isAddingRoom} onOpenChange={setIsAddingRoom}>
@@ -310,7 +511,7 @@ export default function AdminDashboard() {
               </p>
             ) : (
               <div className="space-y-2">
-                {rooms.map((room) => (
+                {rooms.map((room, index) => (
                   <div
                     key={room.id}
                     className="flex items-center justify-between rounded-lg border p-4"
@@ -330,6 +531,22 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleMoveRoom(room.id, 'up')}
+                        disabled={index === 0}
+                      >
+                        Move Up
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleMoveRoom(room.id, 'down')}
+                        disabled={index === rooms.length - 1}
+                      >
+                        Move Down
+                      </Button>
                       <Button
                         variant="outline"
                         size="sm"
@@ -354,35 +571,191 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
-        {/* Settings Summary */}
+        {/* Layout Editor */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Room Layout Editor</CardTitle>
+            <CardDescription>
+              Drag rooms to position them and resize by dragging the corners. Click a room to select it.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div
+              ref={layoutContainerRef}
+              className="w-full overflow-auto rounded-lg border bg-gray-50 p-4"
+            >
+              <LayoutEditor
+                rooms={rooms}
+                canvasWidth={canvasSize.width}
+                canvasHeight={canvasSize.height}
+                onRoomUpdate={handleRoomLayoutUpdate}
+                onRoomSelect={setActiveLayoutRoomId}
+                selectedRoomId={activeLayoutRoomId}
+              />
+            </div>
+
+            {activeLayoutRoom && (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <div>
+                  <label className="text-sm font-medium">X (%)</label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={activeLayoutRoom.layoutX}
+                    onChange={(e) =>
+                      handleRoomLayoutUpdate(activeLayoutRoom.id, {
+                        layoutX: Number(e.target.value)
+                      })
+                    }
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Y (%)</label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={activeLayoutRoom.layoutY}
+                    onChange={(e) =>
+                      handleRoomLayoutUpdate(activeLayoutRoom.id, {
+                        layoutY: Number(e.target.value)
+                      })
+                    }
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Width (%)</label>
+                  <Input
+                    type="number"
+                    min={5}
+                    max={100}
+                    value={activeLayoutRoom.layoutW}
+                    onChange={(e) =>
+                      handleRoomLayoutUpdate(activeLayoutRoom.id, {
+                        layoutW: Number(e.target.value)
+                      })
+                    }
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Height (%)</label>
+                  <Input
+                    type="number"
+                    min={5}
+                    max={100}
+                    value={activeLayoutRoom.layoutH}
+                    onChange={(e) =>
+                      handleRoomLayoutUpdate(activeLayoutRoom.id, {
+                        layoutH: Number(e.target.value)
+                      })
+                    }
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Settings */}
         <Card>
           <CardHeader>
             <CardTitle>Settings</CardTitle>
+            <CardDescription>
+              Update booking rules, polling, and layout configuration
+            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="flex justify-between">
-              <span className="text-sm text-muted-foreground">
-                Polling Interval
-              </span>
-              <span className="text-sm font-medium">
-                {settings?.pollIntervalSeconds}s
-              </span>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="text-sm font-medium">
+                  Polling Interval (seconds)
+                </label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={settingsDraft.pollIntervalSeconds}
+                  onChange={(e) =>
+                    setSettingsDraft((prev) => ({
+                      ...prev,
+                      pollIntervalSeconds: Number(e.target.value)
+                    }))
+                  }
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">
+                  Layout Columns (board)
+                </label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={settingsDraft.layoutColumns}
+                  onChange={(e) =>
+                    setSettingsDraft((prev) => ({
+                      ...prev,
+                      layoutColumns: Number(e.target.value)
+                    }))
+                  }
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Time Zone</label>
+                <Input
+                  value={settingsDraft.timeZone}
+                  onChange={(e) =>
+                    setSettingsDraft((prev) => ({
+                      ...prev,
+                      timeZone: e.target.value
+                    }))
+                  }
+                  placeholder="e.g., America/New_York"
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">
+                  Booking Durations (minutes)
+                </label>
+                <Input
+                  value={settingsDraft.bookingDurations}
+                  onChange={(e) =>
+                    setSettingsDraft((prev) => ({
+                      ...prev,
+                      bookingDurations: e.target.value
+                    }))
+                  }
+                  placeholder="e.g., 15, 30, 60"
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">
+                  Extend Increments (minutes)
+                </label>
+                <Input
+                  value={settingsDraft.extendIncrements}
+                  onChange={(e) =>
+                    setSettingsDraft((prev) => ({
+                      ...prev,
+                      extendIncrements: e.target.value
+                    }))
+                  }
+                  placeholder="e.g., 15, 30"
+                  className="mt-1"
+                />
+              </div>
             </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-muted-foreground">
-                Booking Durations
-              </span>
-              <span className="text-sm font-medium">
-                {settings?.bookingDurations.join(', ')} minutes
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-muted-foreground">
-                Extend Increments
-              </span>
-              <span className="text-sm font-medium">
-                {settings?.extendIncrements.join(', ')} minutes
-              </span>
+            <div className="flex justify-end">
+              <Button onClick={handleSaveSettings} disabled={settingsSaving}>
+                {settingsSaving ? 'Saving...' : 'Save Settings'}
+              </Button>
             </div>
           </CardContent>
         </Card>

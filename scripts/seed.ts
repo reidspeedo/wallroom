@@ -24,6 +24,7 @@ async function main() {
       adminPasswordHash,
       boardPublicToken,
       pollIntervalSeconds: 10,
+      layoutColumns: 3,
       timeZone: 'America/New_York',
       bookingDurations: [15, 30, 60, 90, 120],
       extendIncrements: [15, 30]
@@ -46,6 +47,10 @@ async function main() {
         color: '#3b82f6',
         isActive: true,
         displayOrder: 1,
+        layoutX: 5,
+        layoutY: 5,
+        layoutW: 35,
+        layoutH: 30,
         capacity: 12
       }
     }),
@@ -56,6 +61,10 @@ async function main() {
         color: '#10b981',
         isActive: true,
         displayOrder: 2,
+        layoutX: 45,
+        layoutY: 5,
+        layoutW: 30,
+        layoutH: 25,
         capacity: 8
       }
     }),
@@ -66,6 +75,10 @@ async function main() {
         color: '#f59e0b',
         isActive: true,
         displayOrder: 3,
+        layoutX: 5,
+        layoutY: 40,
+        layoutW: 25,
+        layoutH: 20,
         capacity: 4
       }
     }),
@@ -76,6 +89,10 @@ async function main() {
         color: '#8b5cf6',
         isActive: true,
         displayOrder: 4,
+        layoutX: 35,
+        layoutY: 40,
+        layoutW: 12,
+        layoutH: 15,
         capacity: 1
       }
     }),
@@ -86,6 +103,10 @@ async function main() {
         color: '#ec4899',
         isActive: true,
         displayOrder: 5,
+        layoutX: 50,
+        layoutY: 40,
+        layoutW: 12,
+        layoutH: 15,
         capacity: 1
       }
     })

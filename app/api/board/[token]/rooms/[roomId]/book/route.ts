@@ -28,7 +28,7 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { durationMinutes, title } = body;
+    const { durationMinutes, title, startTime: startTimeRaw } = body;
 
     // Validate duration
     if (
@@ -56,8 +56,23 @@ export async function POST(
       );
     }
 
-    // Calculate start and end times
-    const startTime = new Date();
+    const now = new Date();
+    const startTime = startTimeRaw ? new Date(startTimeRaw) : now;
+    if (Number.isNaN(startTime.getTime())) {
+      return NextResponse.json(
+        { error: 'Invalid start time' },
+        { status: 400 }
+      );
+    }
+
+    if (startTime.getTime() < now.getTime() - 60 * 1000) {
+      return NextResponse.json(
+        { error: 'Start time must be in the future' },
+        { status: 400 }
+      );
+    }
+
+    // Calculate end time
     const endTime = new Date(startTime.getTime() + durationMinutes * 60 * 1000);
 
     // Check for conflicts

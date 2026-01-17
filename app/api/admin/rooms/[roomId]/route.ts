@@ -12,7 +12,17 @@ export async function PUT(
 
     const { roomId } = await params;
     const body = await request.json();
-    const { name, description, color, isActive, displayOrder } = body;
+    const {
+      name,
+      description,
+      color,
+      isActive,
+      displayOrder,
+      layoutX,
+      layoutY,
+      layoutW,
+      layoutH
+    } = body;
 
     // Check if room exists
     const existingRoom = await prisma.room.findUnique({
@@ -30,6 +40,10 @@ export async function PUT(
     if (color !== undefined) updateData.color = color || null;
     if (isActive !== undefined) updateData.isActive = isActive;
     if (displayOrder !== undefined) updateData.displayOrder = displayOrder;
+    if (layoutX !== undefined) updateData.layoutX = layoutX;
+    if (layoutY !== undefined) updateData.layoutY = layoutY;
+    if (layoutW !== undefined) updateData.layoutW = layoutW;
+    if (layoutH !== undefined) updateData.layoutH = layoutH;
 
     const room = await prisma.room.update({
       where: { id: roomId },
@@ -43,7 +57,11 @@ export async function PUT(
         description: room.description,
         color: room.color,
         isActive: room.isActive,
-        displayOrder: room.displayOrder
+        displayOrder: room.displayOrder,
+        layoutX: room.layoutX,
+        layoutY: room.layoutY,
+        layoutW: room.layoutW,
+        layoutH: room.layoutH
       }
     });
   } catch (error) {

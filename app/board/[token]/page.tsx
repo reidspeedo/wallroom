@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, use } from 'react';
+import { useEffect, useState, use, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { LayoutViewer } from '@/components/layout-viewer';
 import {
   Card,
   CardContent,
@@ -36,6 +37,11 @@ interface Room {
   status: 'free' | 'occupied';
   currentBooking?: Booking;
   nextBooking?: Booking;
+  dayBookings?: Booking[];
+  layoutX?: number;
+  layoutY?: number;
+  layoutW?: number;
+  layoutH?: number;
 }
 
 interface BoardState {
@@ -43,6 +49,7 @@ interface BoardState {
   rooms: Room[];
   bookingDurations: number[];
   extendIncrements: number[];
+  layoutColumns: number;
 }
 
 export default function BoardPage({
@@ -59,12 +66,15 @@ export default function BoardPage({
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [bookingTitle, setBookingTitle] = useState('');
   const [selectedDuration, setSelectedDuration] = useState<number | null>(null);
+  const [selectedStartTime, setSelectedStartTime] = useState('');
   const [bookingError, setBookingError] = useState('');
   const [bookingLoading, setBookingLoading] = useState(false);
 
   // Room detail modal state
   const [detailRoom, setDetailRoom] = useState<Room | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 });
+  const layoutContainerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     loadBoardState();
@@ -75,6 +85,20 @@ export default function BoardPage({
 
     return () => clearInterval(interval);
   }, [token]);
+
+  // Update canvas size based on container
+  useEffect(() => {
+    const updateCanvasSize = () => {
+      if (layoutContainerRef.current) {
+        const rect = layoutContainerRef.current.getBoundingClientRect();
+        setCanvasSize({ width: rect.width, height: 600 });
+      }
+    };
+
+    updateCanvasSize();
+    window.addEventListener('resize', updateCanvasSize);
+    return () => window.removeEventListener('resize', updateCanvasSize);
+  }, []);
 
   const loadBoardState = async () => {
     try {
@@ -99,6 +123,7 @@ export default function BoardPage({
       setSelectedRoom(room);
       setBookingTitle('');
       setSelectedDuration(null);
+      setSelectedStartTime('');
       setBookingError('');
     } else {
       setDetailRoom(room);
@@ -106,7 +131,12 @@ export default function BoardPage({
   };
 
   const handleBook = async () => {
-    if (!selectedRoom || !selectedDuration || !bookingTitle.trim()) {
+    if (
+      !selectedRoom ||
+      !selectedDuration ||
+      !selectedStartTime ||
+      !bookingTitle.trim()
+    ) {
       setBookingError('Please fill in all fields');
       return;
     }
@@ -122,6 +152,7 @@ export default function BoardPage({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             durationMinutes: selectedDuration,
+            startTime: selectedStartTime,
             title: bookingTitle.trim()
           })
         }
@@ -201,6 +232,52 @@ export default function BoardPage({
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  const formatTimeValue = (date: Date) =>
+    date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  const roundUpToInterval = (date: Date, intervalMinutes: number) => {
+    const intervalMs = intervalMinutes * 60 * 1000;
+    const rounded = Math.ceil(date.getTime() / intervalMs) * intervalMs;
+    return new Date(rounded);
+  };
+
+  const getAvailableSlots = (room: Room, durationMinutes: number) => {
+    const slots: { label: string; value: string }[] = [];
+    const now = boardState ? new Date(boardState.serverTime) : new Date();
+    const intervalMinutes = Math.max(
+      5,
+      Math.min(...(boardState?.bookingDurations || [15]))
+    );
+    const dayEnd = new Date(now);
+    dayEnd.setHours(23, 59, 59, 999);
+
+    const bookings = (room.dayBookings || []).map((booking) => ({
+      start: new Date(booking.startTime),
+      end: new Date(booking.endTime)
+    }));
+
+    let cursor = roundUpToInterval(now, intervalMinutes);
+    while (cursor.getTime() + durationMinutes * 60 * 1000 <= dayEnd.getTime()) {
+      const slotStart = cursor;
+      const slotEnd = new Date(
+        slotStart.getTime() + durationMinutes * 60 * 1000
+      );
+      const hasConflict = bookings.some(
+        (booking) => slotStart < booking.end && slotEnd > booking.start
+      );
+
+      if (!hasConflict) {
+        slots.push({
+          label: `${formatTimeValue(slotStart)} - ${formatTimeValue(slotEnd)}`,
+          value: slotStart.toISOString()
+        });
+      }
+      cursor = new Date(cursor.getTime() + intervalMinutes * 60 * 1000);
+    }
+
+    return slots;
+  };
+
   const getTimeRemaining = (endTime: string) => {
     const now = new Date();
     const end = new Date(endTime);
@@ -214,6 +291,11 @@ export default function BoardPage({
     const mins = diffMins % 60;
     return `${hours}h ${mins}m left`;
   };
+
+  const availableSlots =
+    selectedRoom && selectedDuration
+      ? getAvailableSlots(selectedRoom, selectedDuration)
+      : [];
 
   if (loading) {
     return (
@@ -255,7 +337,43 @@ export default function BoardPage({
           </div>
         )}
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <Card>
+          <CardHeader>
+            <CardTitle>Office Layout</CardTitle>
+            <CardDescription>
+              Tap a room on the layout to book or view details
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div
+              ref={layoutContainerRef}
+              className="w-full overflow-auto rounded-lg border bg-gray-50 p-4"
+            >
+              {boardState && (
+                <LayoutViewer
+                  rooms={boardState.rooms}
+                  canvasWidth={canvasSize.width}
+                  canvasHeight={canvasSize.height}
+                  onRoomClick={(roomId) => {
+                    const room = boardState.rooms.find((r) => r.id === roomId);
+                    if (room) {
+                      handleRoomClick(room);
+                    }
+                  }}
+                />
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <div
+          className="grid gap-4"
+          style={{
+            gridTemplateColumns: `repeat(${
+              Math.max(1, boardState?.layoutColumns || 3)
+            }, minmax(0, 1fr))`
+          }}
+        >
           {boardState?.rooms.map((room) => (
             <Card
               key={room.id}
@@ -326,7 +444,7 @@ export default function BoardPage({
             <DialogHeader>
               <DialogTitle>Book {selectedRoom?.name}</DialogTitle>
               <DialogDescription>
-                Select a duration and enter a meeting title
+                Select a time slot, duration, and meeting title
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
@@ -339,13 +457,46 @@ export default function BoardPage({
                       variant={
                         selectedDuration === duration ? 'default' : 'outline'
                       }
-                      onClick={() => setSelectedDuration(duration)}
+                      onClick={() => {
+                        setSelectedDuration(duration);
+                        setSelectedStartTime('');
+                      }}
                       type="button"
                     >
                       {duration} min
                     </Button>
                   ))}
                 </div>
+              </div>
+              <div>
+                <label htmlFor="startTime" className="text-sm font-medium">
+                  Start Time
+                </label>
+                <select
+                  id="startTime"
+                  value={selectedStartTime}
+                  onChange={(e) => setSelectedStartTime(e.target.value)}
+                  disabled={!selectedDuration}
+                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <option value="">
+                    {selectedDuration
+                      ? 'Select an available slot'
+                      : 'Choose a duration first'}
+                  </option>
+                  {selectedRoom &&
+                    selectedDuration &&
+                    availableSlots.map((slot) => (
+                      <option key={slot.value} value={slot.value}>
+                        {slot.label}
+                      </option>
+                    ))}
+                </select>
+                {selectedDuration && availableSlots.length === 0 && (
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    No available slots for this duration today.
+                  </p>
+                )}
               </div>
               <div>
                 <label htmlFor="title" className="text-sm font-medium">
@@ -374,8 +525,16 @@ export default function BoardPage({
               >
                 Cancel
               </Button>
-              <Button onClick={handleBook} disabled={bookingLoading}>
-                {bookingLoading ? 'Booking...' : 'Book Now'}
+              <Button
+                onClick={handleBook}
+                disabled={
+                  bookingLoading ||
+                  !selectedDuration ||
+                  !selectedStartTime ||
+                  !bookingTitle.trim()
+                }
+              >
+                {bookingLoading ? 'Booking...' : 'Book Slot'}
               </Button>
             </DialogFooter>
           </DialogContent>
