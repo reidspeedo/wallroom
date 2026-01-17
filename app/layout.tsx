@@ -3,9 +3,9 @@ import './globals.css';
 import { Analytics } from '@vercel/analytics/react';
 
 export const metadata = {
-  title: 'Next.js App Router + NextAuth + Tailwind CSS',
+  title: 'WallBoard Rooms',
   description:
-    'A user admin dashboard configured with Next.js, Postgres, NextAuth, Tailwind CSS, TypeScript, and Prettier.'
+    'A simple, always-on web dashboard for live room availability and instant booking.'
 };
 
 export default function RootLayout({
