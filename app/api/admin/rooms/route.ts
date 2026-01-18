@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     await requireAdminSession();
 
     const body = await request.json();
-    const { name, description, color } = body;
+    const { name, description, color, capacity } = body;
 
     if (!name || name.trim().length === 0) {
       return NextResponse.json(
@@ -66,6 +66,7 @@ export async function POST(request: NextRequest) {
         name: name.trim(),
         description: description?.trim() || null,
         color: color || null,
+        capacity: capacity ? Number(capacity) : null,
         displayOrder,
         layoutX: 0,
         layoutY: 0,
@@ -81,6 +82,7 @@ export async function POST(request: NextRequest) {
         name: room.name,
         description: room.description,
         color: room.color,
+        capacity: room.capacity,
         isActive: room.isActive,
         displayOrder: room.displayOrder,
         layoutX: room.layoutX,

@@ -47,11 +47,11 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Admin Login</CardTitle>
-          <CardDescription>
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-white to-slate-50 px-4">
+      <Card className="w-full max-w-md border-slate-200 bg-white shadow-elevated">
+        <CardHeader className="space-y-2 pb-6">
+          <CardTitle className="text-2xl font-semibold tracking-tight text-slate-900">Admin Login</CardTitle>
+          <CardDescription className="text-slate-600">
             Enter your admin password to access the dashboard
           </CardDescription>
         </CardHeader>
@@ -73,12 +73,16 @@ export default function LoginPage() {
             </div>
 
             {error && (
-              <div className="rounded-md bg-red-50 p-3 text-sm text-red-800">
+              <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800 shadow-soft">
                 {error}
               </div>
             )}
 
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button 
+              type="submit" 
+              className="w-full gradient-primary shadow-soft hover:opacity-90" 
+              disabled={loading}
+            >
               {loading ? 'Logging in...' : 'Login'}
             </Button>
           </form>

@@ -149,7 +149,7 @@ export function LayoutEditor({
   return (
     <div
       ref={containerRef}
-      className="relative w-full overflow-hidden rounded-lg border bg-white"
+      className="relative w-full overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-white to-slate-50"
       style={{ height: `${canvasHeight}px` }}
       onClick={(e) => {
         if (e.target === containerRef.current) {
@@ -158,7 +158,7 @@ export function LayoutEditor({
       }}
     >
       {/* Grid background */}
-      <div className="absolute inset-0 opacity-30">
+      <div className="absolute inset-0 opacity-20">
         {Array.from({ length: 10 }).map((_, i) => (
           <div key={`h-${i}`} className="absolute border-t border-dashed border-gray-300" style={{ top: `${(i * 10)}%`, width: '100%', height: '1px' }} />
         ))}
@@ -173,15 +173,15 @@ export function LayoutEditor({
         return (
           <div
             key={room.id}
-            className={`absolute cursor-move rounded border-2 transition-shadow ${
-              isSelected ? 'shadow-lg ring-2 ring-blue-500' : 'shadow-md'
+            className={`absolute cursor-move rounded-xl border-2 transition-all ${
+              isSelected ? 'shadow-elevated ring-2 ring-blue-500 ring-offset-2' : 'shadow-soft hover:shadow-elevated'
             }`}
             style={{
               left: `${room.layoutX}%`,
               top: `${room.layoutY}%`,
               width: `${room.layoutW}%`,
               height: `${room.layoutH}%`,
-              backgroundColor: room.color || '#3b82f6',
+              backgroundColor: room.color || '#8ea2c2',
               borderColor: isSelected ? '#2563eb' : '#ffffff'
             }}
             onMouseDown={(e) => handleMouseDown(e, room.id, 'drag')}

@@ -67,8 +67,9 @@ export default function AdminDashboard() {
   const [isAddingRoom, setIsAddingRoom] = useState(false);
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
   const [newRoomName, setNewRoomName] = useState('');
-  const [newRoomColor, setNewRoomColor] = useState('#3b82f6');
+  const [newRoomColor, setNewRoomColor] = useState('#8ea2c2');
   const [newRoomDescription, setNewRoomDescription] = useState('');
+  const [newRoomCapacity, setNewRoomCapacity] = useState<number | ''>('');
 
   useEffect(() => {
     loadData();
@@ -141,8 +142,9 @@ export default function AdminDashboard() {
       }
 
       setNewRoomName('');
-      setNewRoomColor('#3b82f6');
+      setNewRoomColor('#8ea2c2');
       setNewRoomDescription('');
+      setNewRoomCapacity('');
       setIsAddingRoom(false);
       await loadData();
     } catch (err) {
@@ -209,8 +211,9 @@ export default function AdminDashboard() {
   const handleEditRoom = (room: Room) => {
     setEditingRoom(room);
     setNewRoomName(room.name);
-    setNewRoomColor(room.color || '#3b82f6');
+    setNewRoomColor(room.color || '#8ea2c2');
     setNewRoomDescription(room.description || '');
+    setNewRoomCapacity(room.capacity || '');
   };
 
   const handleUpdateRoom = async (e: React.FormEvent) => {
@@ -226,7 +229,8 @@ export default function AdminDashboard() {
         body: JSON.stringify({
           name: newRoomName,
           color: newRoomColor,
-          description: newRoomDescription || null
+          description: newRoomDescription || null,
+          capacity: newRoomCapacity ? Number(newRoomCapacity) : null
         })
       });
 
@@ -236,7 +240,7 @@ export default function AdminDashboard() {
       }
 
       setNewRoomName('');
-      setNewRoomColor('#3b82f6');
+      setNewRoomColor('#8ea2c2');
       setNewRoomDescription('');
       setEditingRoom(null);
       await loadData();
@@ -327,31 +331,35 @@ export default function AdminDashboard() {
   const activeLayoutRoom = rooms.find((room) => room.id === activeLayoutRoomId);
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
-      <div className="mx-auto max-w-6xl space-y-6">
-        <div className="flex items-center justify-between">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
+      <div className="mx-auto max-w-7xl space-y-8 p-8">
+        <div className="flex items-center justify-between border-b border-slate-200 pb-6">
           <div>
-            <h1 className="text-3xl font-bold">WallBoard Rooms Admin</h1>
-            <p className="text-muted-foreground">
-              Manage your meeting rooms and settings
+            <h1 className="text-4xl font-semibold tracking-tight text-slate-900">Admin Dashboard</h1>
+            <p className="mt-2 text-base text-slate-600">
+              Manage rooms, settings, and view bookings
             </p>
           </div>
-          <Button variant="outline" onClick={handleLogout}>
+          <Button 
+            variant="outline" 
+            onClick={handleLogout}
+            className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+          >
             Logout
           </Button>
         </div>
 
         {error && (
-          <div className="rounded-md bg-red-50 p-4 text-sm text-red-800">
+          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 shadow-soft">
             {error}
           </div>
         )}
 
         {/* Board URL Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Public Board URL</CardTitle>
-            <CardDescription>
+        <Card className="border-slate-200 bg-white shadow-elevated">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-xl font-semibold text-slate-900">Public Board URL</CardTitle>
+            <CardDescription className="text-slate-600">
               Share this URL to access the public booking board
             </CardDescription>
           </CardHeader>
@@ -368,6 +376,7 @@ export default function AdminDashboard() {
                   settings?.boardPublicUrl &&
                   navigator.clipboard.writeText(settings.boardPublicUrl)
                 }
+                className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
               >
                 Copy
               </Button>
@@ -377,6 +386,7 @@ export default function AdminDashboard() {
                   settings?.boardPublicUrl &&
                   window.open(settings.boardPublicUrl, '_blank')
                 }
+                className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
               >
                 Open
               </Button>
@@ -385,18 +395,20 @@ export default function AdminDashboard() {
         </Card>
 
         {/* Rooms Management */}
-        <Card>
-          <CardHeader>
+        <Card className="border-slate-200 bg-white shadow-elevated">
+          <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Meeting Rooms</CardTitle>
-                <CardDescription>
+                <CardTitle className="text-xl font-semibold text-slate-900">Meeting Rooms</CardTitle>
+                <CardDescription className="text-slate-600">
                   Create rooms and configure their layout order
                 </CardDescription>
               </div>
               <Dialog open={isAddingRoom} onOpenChange={setIsAddingRoom}>
                 <DialogTrigger asChild>
-                  <Button>Add Room</Button>
+                  <Button className="gradient-primary shadow-soft hover:opacity-90">
+                    Add Room
+                  </Button>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
@@ -427,22 +439,34 @@ export default function AdminDashboard() {
                           value={newRoomDescription}
                           onChange={(e) => setNewRoomDescription(e.target.value)}
                           placeholder="Optional description"
-                          className="mt-1"
+                          className="mt-1 border-slate-200 bg-white focus:border-blue-500 focus:ring-blue-500/20"
                         />
                       </div>
                       <div>
-                        <label className="text-sm font-medium">Color</label>
+                        <label className="text-sm font-medium text-slate-700">Capacity</label>
+                        <Input
+                          type="number"
+                          min={1}
+                          value={newRoomCapacity}
+                          onChange={(e) => setNewRoomCapacity(e.target.value ? Number(e.target.value) : '')}
+                          placeholder="e.g., 8"
+                          className="mt-1 border-slate-200 bg-white focus:border-blue-500 focus:ring-blue-500/20"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-slate-700">Color</label>
                         <div className="mt-1 flex gap-2">
                           <Input
                             type="color"
                             value={newRoomColor}
                             onChange={(e) => setNewRoomColor(e.target.value)}
-                            className="h-10 w-20"
+                            className="h-10 w-20 cursor-pointer rounded-xl border-slate-200"
                           />
                           <Input
                             value={newRoomColor}
                             onChange={(e) => setNewRoomColor(e.target.value)}
-                            className="flex-1 font-mono"
+                            placeholder="#8ea2c2"
+                            className="flex-1 border-slate-200 bg-white font-mono focus:border-blue-500 focus:ring-blue-500/20"
                           />
                         </div>
                       </div>
@@ -452,19 +476,20 @@ export default function AdminDashboard() {
                         type="button"
                         variant="outline"
                         onClick={() => setIsAddingRoom(false)}
+                        className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                       >
                         Cancel
                       </Button>
-                      <Button type="submit">Create Room</Button>
+                      <Button type="submit" className="gradient-primary shadow-soft hover:opacity-90">Create Room</Button>
                     </DialogFooter>
                   </form>
                 </DialogContent>
               </Dialog>
               <Dialog open={!!editingRoom} onOpenChange={(open) => !open && setEditingRoom(null)}>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Edit Room</DialogTitle>
-                    <DialogDescription>
+                <DialogContent className="border-slate-200 bg-white shadow-elevated">
+                  <DialogHeader className="space-y-2">
+                    <DialogTitle className="text-2xl font-semibold text-slate-900">Edit Room</DialogTitle>
+                    <DialogDescription className="text-slate-600">
                       Update room details
                     </DialogDescription>
                   </DialogHeader>
@@ -490,23 +515,34 @@ export default function AdminDashboard() {
                           value={newRoomDescription}
                           onChange={(e) => setNewRoomDescription(e.target.value)}
                           placeholder="Optional description"
-                          className="mt-1"
+                          className="mt-1 border-slate-200 bg-white focus:border-blue-500 focus:ring-blue-500/20"
                         />
                       </div>
                       <div>
-                        <label className="text-sm font-medium">Color</label>
+                        <label className="text-sm font-medium text-slate-700">Capacity</label>
+                        <Input
+                          type="number"
+                          min={1}
+                          value={newRoomCapacity}
+                          onChange={(e) => setNewRoomCapacity(e.target.value ? Number(e.target.value) : '')}
+                          placeholder="e.g., 8"
+                          className="mt-1 border-slate-200 bg-white focus:border-blue-500 focus:ring-blue-500/20"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-slate-700">Color</label>
                         <div className="mt-1 flex gap-2">
                           <Input
                             type="color"
                             value={newRoomColor}
                             onChange={(e) => setNewRoomColor(e.target.value)}
-                            className="h-10 w-20"
+                            className="h-10 w-20 cursor-pointer rounded-xl border-slate-200"
                           />
                           <Input
                             value={newRoomColor}
                             onChange={(e) => setNewRoomColor(e.target.value)}
-                            placeholder="#3b82f6"
-                            className="flex-1"
+                            placeholder="#8ea2c2"
+                            className="flex-1 border-slate-200 bg-white font-mono focus:border-blue-500 focus:ring-blue-500/20"
                           />
                         </div>
                       </div>
@@ -516,10 +552,11 @@ export default function AdminDashboard() {
                         type="button"
                         variant="outline"
                         onClick={() => setEditingRoom(null)}
+                        className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                       >
                         Cancel
                       </Button>
-                      <Button type="submit">Update Room</Button>
+                      <Button type="submit" className="gradient-primary shadow-soft hover:opacity-90">Update Room</Button>
                     </DialogFooter>
                   </form>
                 </DialogContent>
@@ -536,12 +573,12 @@ export default function AdminDashboard() {
                 {rooms.map((room, index) => (
                   <div
                     key={room.id}
-                    className="flex items-center justify-between rounded-lg border p-4"
+                    className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-5 shadow-soft transition-all hover:shadow-elevated"
                   >
                     <div className="flex items-center gap-3">
                       <div
                         className="h-8 w-8 rounded"
-                        style={{ backgroundColor: room.color || '#3b82f6' }}
+                        style={{ backgroundColor: room.color || '#8ea2c2' }}
                       />
                       <div>
                         <p className="font-medium">{room.name}</p>
@@ -557,6 +594,7 @@ export default function AdminDashboard() {
                         variant="outline"
                         size="sm"
                         onClick={() => handleEditRoom(room)}
+                        className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                       >
                         Edit
                       </Button>
@@ -564,6 +602,7 @@ export default function AdminDashboard() {
                         variant="destructive"
                         size="sm"
                         onClick={() => handleDeleteRoom(room.id)}
+                        className="bg-red-600 text-white hover:bg-red-700"
                       >
                         Delete
                       </Button>
@@ -576,10 +615,10 @@ export default function AdminDashboard() {
         </Card>
 
         {/* Layout Editor */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Room Layout Editor</CardTitle>
-            <CardDescription>
+        <Card className="border-slate-200 bg-white shadow-elevated">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-xl font-semibold text-slate-900">Room Layout Editor</CardTitle>
+            <CardDescription className="text-slate-600">
               Drag rooms to position them and resize by dragging the corners. Click a room to select it.
             </CardDescription>
           </CardHeader>
@@ -601,7 +640,7 @@ export default function AdminDashboard() {
             {activeLayoutRoom && (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <div>
-                  <label className="text-sm font-medium">X (%)</label>
+                  <label className="text-sm font-medium text-slate-700">X (%)</label>
                   <Input
                     type="number"
                     min={0}
@@ -612,11 +651,11 @@ export default function AdminDashboard() {
                         layoutX: Number(e.target.value)
                       })
                     }
-                    className="mt-1"
+                    className="mt-1 border-slate-200 bg-white focus:border-blue-500 focus:ring-blue-500/20"
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium">Y (%)</label>
+                  <label className="text-sm font-medium text-slate-700">Y (%)</label>
                   <Input
                     type="number"
                     min={0}
@@ -627,11 +666,11 @@ export default function AdminDashboard() {
                         layoutY: Number(e.target.value)
                       })
                     }
-                    className="mt-1"
+                    className="mt-1 border-slate-200 bg-white focus:border-blue-500 focus:ring-blue-500/20"
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium">Width (%)</label>
+                  <label className="text-sm font-medium text-slate-700">Width (%)</label>
                   <Input
                     type="number"
                     min={5}
@@ -642,11 +681,11 @@ export default function AdminDashboard() {
                         layoutW: Number(e.target.value)
                       })
                     }
-                    className="mt-1"
+                    className="mt-1 border-slate-200 bg-white focus:border-blue-500 focus:ring-blue-500/20"
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium">Height (%)</label>
+                  <label className="text-sm font-medium text-slate-700">Height (%)</label>
                   <Input
                     type="number"
                     min={5}
@@ -657,7 +696,7 @@ export default function AdminDashboard() {
                         layoutH: Number(e.target.value)
                       })
                     }
-                    className="mt-1"
+                    className="mt-1 border-slate-200 bg-white focus:border-blue-500 focus:ring-blue-500/20"
                   />
                 </div>
               </div>
@@ -666,17 +705,17 @@ export default function AdminDashboard() {
         </Card>
 
         {/* Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Settings</CardTitle>
-            <CardDescription>
+        <Card className="border-slate-200 bg-white shadow-elevated">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-xl font-semibold text-slate-900">Settings</CardTitle>
+            <CardDescription className="text-slate-600">
               Update booking rules and configuration
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
               <div>
-                <label className="text-sm font-medium">Time Zone</label>
+                <label className="text-sm font-medium text-slate-700">Time Zone</label>
                 <Input
                   value={settingsDraft.timeZone}
                   onChange={(e) =>
@@ -686,11 +725,11 @@ export default function AdminDashboard() {
                     }))
                   }
                   placeholder="e.g., America/New_York"
-                  className="mt-1"
+                  className="mt-1 border-slate-200 bg-white focus:border-blue-500 focus:ring-blue-500/20"
                 />
               </div>
               <div>
-                <label className="text-sm font-medium">
+                <label className="text-sm font-medium text-slate-700">
                   Booking Durations (minutes)
                 </label>
                 <Input
@@ -702,11 +741,11 @@ export default function AdminDashboard() {
                     }))
                   }
                   placeholder="e.g., 15, 30, 60"
-                  className="mt-1"
+                  className="mt-1 border-slate-200 bg-white focus:border-blue-500 focus:ring-blue-500/20"
                 />
               </div>
               <div>
-                <label className="text-sm font-medium">
+                <label className="text-sm font-medium text-slate-700">
                   Extend Increments (minutes)
                 </label>
                 <Input
@@ -718,12 +757,16 @@ export default function AdminDashboard() {
                     }))
                   }
                   placeholder="e.g., 15, 30"
-                  className="mt-1"
+                  className="mt-1 border-slate-200 bg-white focus:border-blue-500 focus:ring-blue-500/20"
                 />
               </div>
             </div>
             <div className="flex justify-end">
-              <Button onClick={handleSaveSettings} disabled={settingsSaving}>
+              <Button 
+                onClick={handleSaveSettings} 
+                disabled={settingsSaving}
+                className="gradient-primary shadow-soft hover:opacity-90"
+              >
                 {settingsSaving ? 'Saving...' : 'Save Settings'}
               </Button>
             </div>

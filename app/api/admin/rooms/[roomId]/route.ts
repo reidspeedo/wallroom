@@ -16,6 +16,7 @@ export async function PUT(
       name,
       description,
       color,
+      capacity,
       isActive,
       displayOrder,
       layoutX,
@@ -38,6 +39,7 @@ export async function PUT(
     if (description !== undefined)
       updateData.description = description?.trim() || null;
     if (color !== undefined) updateData.color = color || null;
+    if (capacity !== undefined) updateData.capacity = capacity ? Number(capacity) : null;
     if (isActive !== undefined) updateData.isActive = isActive;
     if (displayOrder !== undefined) updateData.displayOrder = displayOrder;
     if (layoutX !== undefined) updateData.layoutX = layoutX;
@@ -56,6 +58,7 @@ export async function PUT(
         name: room.name,
         description: room.description,
         color: room.color,
+        capacity: room.capacity,
         isActive: room.isActive,
         displayOrder: room.displayOrder,
         layoutX: room.layoutX,

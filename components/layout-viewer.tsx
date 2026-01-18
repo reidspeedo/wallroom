@@ -36,11 +36,11 @@ export function LayoutViewer({
 }: LayoutViewerProps) {
   return (
     <div
-      className="relative w-full overflow-hidden rounded-lg border bg-white"
+      className="relative w-full overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-white to-slate-50"
       style={{ height: `${canvasHeight}px` }}
     >
       {/* Grid background */}
-      <div className="absolute inset-0 opacity-30">
+      <div className="absolute inset-0 opacity-20">
         {Array.from({ length: 10 }).map((_, i) => (
           <div key={`h-${i}`} className="absolute border-t border-dashed border-gray-300" style={{ top: `${(i * 10)}%`, width: '100%', height: '1px' }} />
         ))}
@@ -60,15 +60,15 @@ export function LayoutViewer({
         return (
           <div
             key={room.id}
-            className={`absolute cursor-pointer rounded border-2 shadow-md transition-opacity hover:opacity-90 ${
-              isFree ? 'border-green-400' : 'border-red-400'
+            className={`absolute cursor-pointer rounded-xl border-2 shadow-soft transition-all hover:shadow-elevated hover:scale-[1.02] ${
+              isFree ? 'border-emerald-400' : 'border-red-400'
             }`}
             style={{
               left: `${room.layoutX}%`,
               top: `${room.layoutY}%`,
               width: `${room.layoutW}%`,
               height: `${room.layoutH}%`,
-              backgroundColor: room.color || '#3b82f6',
+              backgroundColor: room.color || '#8ea2c2',
               opacity: isFree ? 0.9 : 0.8
             }}
             onClick={() => onRoomClick?.(room.id)}

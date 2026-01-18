@@ -44,7 +44,7 @@ async function main() {
       data: {
         name: 'Conference Room A',
         description: 'Large conference room with projector',
-        color: '#3b82f6',
+        color: '#8ea2c2',
         isActive: true,
         displayOrder: 1,
         layoutX: 5,

@@ -8,6 +8,18 @@ export async function GET(
 ) {
   try {
     const { token } = await params;
+    const { searchParams } = new URL(request.url);
+    
+    // Get date from query params, default to today
+    const dateParam = searchParams.get('date');
+    let targetDate = new Date();
+    if (dateParam) {
+      const parsed = new Date(dateParam);
+      if (!isNaN(parsed.getTime())) {
+        targetDate = parsed;
+      }
+    }
+    targetDate.setHours(0, 0, 0, 0);
 
     // Verify token
     const settings = await prisma.userSetting.findUnique({
@@ -22,10 +34,15 @@ export async function GET(
     await expireOldBookings();
 
     const now = new Date();
-    const dayStart = new Date(now);
+    const dayStart = new Date(targetDate);
     dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(now);
+    const dayEnd = new Date(targetDate);
     dayEnd.setHours(23, 59, 59, 999);
+    
+    // Use target date for room status if it's today, otherwise use start of target date
+    const statusDate = targetDate.toDateString() === now.toDateString() 
+      ? now 
+      : new Date(targetDate.getTime() + 12 * 60 * 60 * 1000); // Use noon of target date for status check
 
     // Get all active rooms
     const rooms = await prisma.room.findMany({
@@ -61,13 +78,14 @@ export async function GET(
       rooms.map(async (room) => {
         const roomStatus = await getRoomStatus(
           room.id,
-          now,
+          statusDate,
           settings.extendIncrements
         );
         return {
           id: room.id,
           name: room.name,
           color: room.color,
+          capacity: room.capacity,
           isActive: room.isActive,
           layoutX: room.layoutX,
           layoutY: room.layoutY,
@@ -86,6 +104,7 @@ export async function GET(
 
     return NextResponse.json({
       serverTime: now.toISOString(),
+      targetDate: targetDate.toISOString(),
       rooms: roomsWithStatus,
       bookingDurations: settings.bookingDurations,
       extendIncrements: settings.extendIncrements

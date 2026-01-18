@@ -1,24 +1,10 @@
 'use client';
 
 import { useEffect, useState, use, useRef } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { LayoutViewer } from '@/components/layout-viewer';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle
-} from '@/components/ui/card';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from '@/components/ui/dialog';
+import { ControlBar } from '@/components/control-bar';
+import { ProfessionalLayoutViewer } from '@/components/professional-layout-viewer';
+import { RoomListView } from '@/components/room-list-view';
+import { SlideOverPanel } from '@/components/slide-over-panel';
 
 interface Booking {
   id: string;
@@ -33,6 +19,7 @@ interface Room {
   id: string;
   name: string;
   color: string | null;
+  capacity: number | null;
   isActive: boolean;
   status: 'free' | 'occupied';
   currentBooking?: Booking;
@@ -61,39 +48,40 @@ export default function BoardPage({
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
-  // Booking modal state
-  const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
-  const [bookingTitle, setBookingTitle] = useState('');
-  const [selectedDuration, setSelectedDuration] = useState<number | null>(null);
-  const [selectedStartTime, setSelectedStartTime] = useState('');
-  const [bookingError, setBookingError] = useState('');
-  const [bookingLoading, setBookingLoading] = useState(false);
+  // View state
+  const [viewMode, setViewMode] = useState<'floorplan' | 'list'>('floorplan');
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [timeRange, setTimeRange] = useState<'now' | 'next30' | 'custom'>('now');
+  const [showAvailableOnly, setShowAvailableOnly] = useState(false);
+  const [minCapacity, setMinCapacity] = useState<number>(0);
 
-  // Room detail modal state
-  const [detailRoom, setDetailRoom] = useState<Room | null>(null);
+  // Panel state
+  const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
+  const [panelOpen, setPanelOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
-  const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 });
+
+  const [canvasSize, setCanvasSize] = useState({ width: 1200, height: 675 }); // 16:9 aspect ratio
   const layoutContainerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     loadBoardState();
-
-    // Set up polling (default 10 seconds)
     const pollInterval = 10 * 1000;
     const interval = setInterval(loadBoardState, pollInterval);
-
     return () => clearInterval(interval);
-  }, [token]);
+  }, [token, selectedDate]);
 
-  // Update canvas size based on container
   useEffect(() => {
     const updateCanvasSize = () => {
       if (layoutContainerRef.current) {
         const rect = layoutContainerRef.current.getBoundingClientRect();
-        setCanvasSize({ width: rect.width, height: 600 });
+        // Maintain 16:9 aspect ratio
+        const height = (rect.width * 9) / 16;
+        setCanvasSize({
+          width: rect.width,
+          height: Math.max(400, Math.min(800, height))
+        });
       }
     };
-
     updateCanvasSize();
     window.addEventListener('resize', updateCanvasSize);
     return () => window.removeEventListener('resize', updateCanvasSize);
@@ -101,12 +89,12 @@ export default function BoardPage({
 
   const loadBoardState = async () => {
     try {
-      const response = await fetch(`/api/board/${token}/state`);
-      
+      // Format date as YYYY-MM-DD for API
+      const dateStr = selectedDate.toISOString().split('T')[0];
+      const response = await fetch(`/api/board/${token}/state?date=${dateStr}`);
       if (!response.ok) {
         throw new Error('Failed to load board state');
       }
-
       const data = await response.json();
       setBoardState(data);
       setError('');
@@ -118,106 +106,68 @@ export default function BoardPage({
   };
 
   const handleRoomClick = (room: Room) => {
-    if (room.status === 'free') {
-      setSelectedRoom(room);
-      setBookingTitle('');
-      setSelectedDuration(null);
-      setSelectedStartTime('');
-      setBookingError('');
-    } else {
-      setDetailRoom(room);
-    }
+    setSelectedRoom(room);
+    setPanelOpen(true);
   };
 
-  const handleBook = async () => {
-    if (
-      !selectedRoom ||
-      !selectedDuration ||
-      !selectedStartTime ||
-      !bookingTitle.trim()
-    ) {
-      setBookingError('Please fill in all fields');
-      return;
-    }
+  const handleQuickBook = async (roomId: string, duration: number) => {
+    const room = boardState?.rooms.find(r => r.id === roomId);
+    if (!room) return;
 
-    setBookingLoading(true);
-    setBookingError('');
+    const now = new Date();
+    const startTime = new Date(now);
+    startTime.setMinutes(Math.ceil(startTime.getMinutes() / 15) * 15, 0, 0);
 
+    await handleBook(roomId, duration, startTime.toISOString(), 'Quick Booking');
+  };
+
+  const handleBook = async (
+    roomId: string,
+    duration: number,
+    startTime: string,
+    title: string
+  ) => {
+    setActionLoading(true);
     try {
-      const response = await fetch(
-        `/api/board/${token}/rooms/${selectedRoom.id}/book`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            durationMinutes: selectedDuration,
-            startTime: selectedStartTime,
-            title: bookingTitle.trim()
-          })
-        }
-      );
+      const response = await fetch(`/api/board/${token}/rooms/${roomId}/book`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          durationMinutes: duration,
+          startTime,
+          title: title.trim()
+        })
+      });
 
       if (!response.ok) {
         const data = await response.json();
         throw new Error(data.error || 'Booking failed');
       }
 
+      setPanelOpen(false);
       setSelectedRoom(null);
       await loadBoardState();
     } catch (err) {
-      setBookingError(
-        err instanceof Error ? err.message : 'Failed to create booking'
-      );
-    } finally {
-      setBookingLoading(false);
-    }
-  };
-
-  const handleEndBooking = async (bookingId: string) => {
-    setActionLoading(true);
-
-    try {
-      const response = await fetch(
-        `/api/board/${token}/bookings/${bookingId}/end`,
-        { method: 'POST' }
-      );
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to end booking');
-      }
-
-      setDetailRoom(null);
-      await loadBoardState();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to end booking');
+      throw err;
     } finally {
       setActionLoading(false);
     }
   };
 
-  const handleExtendBooking = async (
-    bookingId: string,
-    incrementMinutes: number
-  ) => {
+  const handleExtend = async (bookingId: string, increment: number) => {
     setActionLoading(true);
-
     try {
-      const response = await fetch(
-        `/api/board/${token}/bookings/${bookingId}/extend`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ incrementMinutes })
-        }
-      );
+      const response = await fetch(`/api/board/${token}/bookings/${bookingId}/extend`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ incrementMinutes: increment })
+      });
 
       if (!response.ok) {
         const data = await response.json();
         throw new Error(data.error || 'Failed to extend booking');
       }
 
-      setDetailRoom(null);
       await loadBoardState();
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to extend booking');
@@ -226,131 +176,107 @@ export default function BoardPage({
     }
   };
 
-  const formatTime = (isoString: string) => {
-    const date = new Date(isoString);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
+  const handleEndEarly = async (bookingId: string) => {
+    setActionLoading(true);
+    try {
+      const response = await fetch(`/api/board/${token}/bookings/${bookingId}/end`, {
+        method: 'POST'
+      });
 
-  const formatTimeValue = (date: Date) =>
-    date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-  const roundUpToInterval = (date: Date, intervalMinutes: number) => {
-    const intervalMs = intervalMinutes * 60 * 1000;
-    const rounded = Math.ceil(date.getTime() / intervalMs) * intervalMs;
-    return new Date(rounded);
-  };
-
-  const getAvailableSlots = (room: Room, durationMinutes: number) => {
-    const slots: { label: string; value: string }[] = [];
-    const now = boardState ? new Date(boardState.serverTime) : new Date();
-    const intervalMinutes = Math.max(
-      5,
-      Math.min(...(boardState?.bookingDurations || [15]))
-    );
-    const dayEnd = new Date(now);
-    dayEnd.setHours(23, 59, 59, 999);
-
-    const bookings = (room.dayBookings || []).map((booking) => ({
-      start: new Date(booking.startTime),
-      end: new Date(booking.endTime)
-    }));
-
-    let cursor = roundUpToInterval(now, intervalMinutes);
-    while (cursor.getTime() + durationMinutes * 60 * 1000 <= dayEnd.getTime()) {
-      const slotStart = cursor;
-      const slotEnd = new Date(
-        slotStart.getTime() + durationMinutes * 60 * 1000
-      );
-      const hasConflict = bookings.some(
-        (booking) => slotStart < booking.end && slotEnd > booking.start
-      );
-
-      if (!hasConflict) {
-        slots.push({
-          label: `${formatTimeValue(slotStart)} - ${formatTimeValue(slotEnd)}`,
-          value: slotStart.toISOString()
-        });
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to end booking');
       }
-      cursor = new Date(cursor.getTime() + intervalMinutes * 60 * 1000);
+
+      await loadBoardState();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to end booking');
+    } finally {
+      setActionLoading(false);
     }
-
-    return slots;
   };
 
-  const getTimeRemaining = (endTime: string) => {
-    const now = new Date();
-    const end = new Date(endTime);
-    const diffMs = end.getTime() - now.getTime();
-    const diffMins = Math.ceil(diffMs / 60000);
-
-    if (diffMins <= 0) return 'Ending soon';
-    if (diffMins < 60) return `${diffMins} min left`;
-
-    const hours = Math.floor(diffMins / 60);
-    const mins = diffMins % 60;
-    return `${hours}h ${mins}m left`;
-  };
-
-  const availableSlots =
-    selectedRoom && selectedDuration
-      ? getAvailableSlots(selectedRoom, selectedDuration)
-      : [];
+  // Filter rooms based on filters
+  const filteredRooms = boardState?.rooms.filter(room => {
+    if (showAvailableOnly && room.status !== 'free') return false;
+    if (minCapacity > 0 && (room.capacity === null || room.capacity < minCapacity)) return false;
+    return true;
+  }) || [];
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-100">
-        <p className="text-xl">Loading board...</p>
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="text-center">
+          <p className="text-lg font-medium text-slate-900">Loading meeting rooms...</p>
+          <p className="mt-2 text-sm text-slate-600">Please wait</p>
+        </div>
       </div>
     );
   }
 
   if (error && !boardState) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-100">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>Error</CardTitle>
-            <CardDescription>{error}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={loadBoardState}>Retry</Button>
-          </CardContent>
-        </Card>
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="text-center max-w-md">
+          <p className="text-lg font-semibold text-slate-900">Error</p>
+          <p className="mt-2 text-sm text-slate-600">{error}</p>
+          <button
+            onClick={loadBoardState}
+            className="mt-4 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          >
+            Retry
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4">
-      <div className="mx-auto max-w-7xl space-y-4">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold">Meeting Rooms</h1>
-          <p className="text-muted-foreground">
-            Tap a room to book or view details
+    <div className="min-h-screen bg-slate-50">
+      {/* Header */}
+      <div className="border-b border-slate-200 bg-white">
+        <div className="mx-auto max-w-7xl px-6 py-6">
+          <h1 className="text-2xl font-semibold text-slate-900">Meeting Rooms</h1>
+          <p className="mt-1 text-sm text-slate-600">
+            {boardState && `Last updated ${new Date(boardState.serverTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
           </p>
         </div>
+      </div>
 
+      {/* Control Bar */}
+      {boardState && (
+        <ControlBar
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          showAvailableOnly={showAvailableOnly}
+          onShowAvailableOnlyChange={setShowAvailableOnly}
+          minCapacity={minCapacity}
+          onMinCapacityChange={setMinCapacity}
+          selectedDate={selectedDate}
+          onDateChange={setSelectedDate}
+          timeRange={timeRange}
+          onTimeRangeChange={setTimeRange}
+        />
+      )}
+
+      {/* Main Content */}
+      <div className="mx-auto max-w-7xl px-6 py-6">
         {error && (
-          <div className="rounded-md bg-yellow-50 p-3 text-sm text-yellow-800">
+          <div className="mb-4 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
             {error}
           </div>
         )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Office Layout</CardTitle>
-            <CardDescription>
-              Tap a room on the layout to book or view details
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+        {viewMode === 'floorplan' ? (
+          /* Floorplan View */
+          <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
             <div
               ref={layoutContainerRef}
-              className="w-full overflow-auto rounded-lg border bg-gray-50 p-4"
+              className="w-full overflow-hidden rounded-lg bg-slate-50 p-6"
             >
               {boardState && (
-                <LayoutViewer
-                  rooms={boardState.rooms.map((room) => ({
+                <ProfessionalLayoutViewer
+                  rooms={filteredRooms.map((room) => ({
                     ...room,
                     currentBooking: room.currentBooking ? {
                       title: room.currentBooking.title,
@@ -365,193 +291,44 @@ export default function BoardPage({
                   canvasHeight={canvasSize.height}
                   onRoomClick={(roomId) => {
                     const room = boardState.rooms.find((r) => r.id === roomId);
-                    if (room) {
-                      handleRoomClick(room);
-                    }
+                    if (room) handleRoomClick(room);
                   }}
                 />
               )}
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Booking Modal */}
-        <Dialog
-          open={!!selectedRoom}
-          onOpenChange={(open) => !open && setSelectedRoom(null)}
-        >
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Book {selectedRoom?.name}</DialogTitle>
-              <DialogDescription>
-                Select a time slot, duration, and meeting title
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div>
-                <label className="text-sm font-medium">Duration</label>
-                <div className="mt-2 grid grid-cols-3 gap-2">
-                  {boardState?.bookingDurations.map((duration) => (
-                    <Button
-                      key={duration}
-                      variant={
-                        selectedDuration === duration ? 'default' : 'outline'
-                      }
-                      onClick={() => {
-                        setSelectedDuration(duration);
-                        setSelectedStartTime('');
-                      }}
-                      type="button"
-                    >
-                      {duration} min
-                    </Button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label htmlFor="startTime" className="text-sm font-medium">
-                  Start Time
-                </label>
-                <select
-                  id="startTime"
-                  value={selectedStartTime}
-                  onChange={(e) => setSelectedStartTime(e.target.value)}
-                  disabled={!selectedDuration}
-                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <option value="">
-                    {selectedDuration
-                      ? 'Select an available slot'
-                      : 'Choose a duration first'}
-                  </option>
-                  {selectedRoom &&
-                    selectedDuration &&
-                    availableSlots.map((slot) => (
-                      <option key={slot.value} value={slot.value}>
-                        {slot.label}
-                      </option>
-                    ))}
-                </select>
-                {selectedDuration && availableSlots.length === 0 && (
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    No available slots for this duration today.
-                  </p>
-                )}
-              </div>
-              <div>
-                <label htmlFor="title" className="text-sm font-medium">
-                  Meeting Title
-                </label>
-                <Input
-                  id="title"
-                  value={bookingTitle}
-                  onChange={(e) => setBookingTitle(e.target.value)}
-                  placeholder="e.g., Team Standup"
-                  maxLength={120}
-                  className="mt-1"
-                />
-              </div>
-              {bookingError && (
-                <div className="rounded-md bg-red-50 p-3 text-sm text-red-800">
-                  {bookingError}
-                </div>
-              )}
-            </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setSelectedRoom(null)}
-                disabled={bookingLoading}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleBook}
-                disabled={
-                  bookingLoading ||
-                  !selectedDuration ||
-                  !selectedStartTime ||
-                  !bookingTitle.trim()
-                }
-              >
-                {bookingLoading ? 'Booking...' : 'Book Slot'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Room Detail Modal */}
-        <Dialog
-          open={!!detailRoom}
-          onOpenChange={(open) => !open && setDetailRoom(null)}
-        >
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>{detailRoom?.name}</DialogTitle>
-              <DialogDescription>Current booking details</DialogDescription>
-            </DialogHeader>
-            {detailRoom?.currentBooking && (
-              <div className="space-y-4 py-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Meeting</p>
-                  <p className="text-lg font-medium">
-                    {detailRoom.currentBooking.title}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Time</p>
-                  <p className="font-medium">
-                    {formatTime(detailRoom.currentBooking.startTime)} -{' '}
-                    {formatTime(detailRoom.currentBooking.endTime)}
-                  </p>
-                  <p className="text-sm text-red-600">
-                    {getTimeRemaining(detailRoom.currentBooking.endTime)}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  {detailRoom.currentBooking.canEndEarly && (
-                    <Button
-                      variant="outline"
-                      onClick={() =>
-                        handleEndBooking(detailRoom.currentBooking!.id)
-                      }
-                      disabled={actionLoading}
-                      className="flex-1"
-                    >
-                      End Now
-                    </Button>
-                  )}
-                  {detailRoom.currentBooking.canExtend && (
-                    <div className="flex flex-1 gap-2">
-                      {boardState?.extendIncrements.map((increment) => (
-                        <Button
-                          key={increment}
-                          variant="outline"
-                          onClick={() =>
-                            handleExtendBooking(
-                              detailRoom.currentBooking!.id,
-                              increment
-                            )
-                          }
-                          disabled={actionLoading}
-                          className="flex-1"
-                        >
-                          +{increment}m
-                        </Button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
+          </div>
+        ) : (
+          /* List View */
+          <div>
+            {boardState && (
+              <RoomListView
+                rooms={filteredRooms}
+                onRoomClick={handleRoomClick}
+                bookingDurations={boardState.bookingDurations}
+                onQuickBook={handleQuickBook}
+              />
             )}
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setDetailRoom(null)}>
-                Close
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          </div>
+        )}
       </div>
+
+      {/* Slide-Over Panel */}
+      {boardState && selectedRoom && (
+        <SlideOverPanel
+          room={selectedRoom}
+          isOpen={panelOpen}
+          onClose={() => {
+            setPanelOpen(false);
+            setSelectedRoom(null);
+          }}
+          bookingDurations={boardState.bookingDurations}
+          onBook={handleBook}
+          onExtend={handleExtend}
+          onEndEarly={handleEndEarly}
+          extendIncrements={boardState.extendIncrements}
+          isLoading={actionLoading}
+        />
+      )}
     </div>
   );
 }
