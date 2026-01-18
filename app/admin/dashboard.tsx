@@ -40,10 +40,8 @@ interface Room {
 
 interface Settings {
   timeZone: string | null;
-  pollIntervalSeconds: number;
   bookingDurations: number[];
   extendIncrements: number[];
-  layoutColumns: number;
   boardPublicUrl: string;
 }
 
@@ -56,10 +54,8 @@ export default function AdminDashboard() {
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsDraft, setSettingsDraft] = useState({
     timeZone: '',
-    pollIntervalSeconds: 10,
     bookingDurations: '',
-    extendIncrements: '',
-    layoutColumns: 3
+    extendIncrements: ''
   });
   const [activeLayoutRoomId, setActiveLayoutRoomId] = useState<string | null>(
     null
@@ -69,6 +65,7 @@ export default function AdminDashboard() {
 
   // Room form state
   const [isAddingRoom, setIsAddingRoom] = useState(false);
+  const [editingRoom, setEditingRoom] = useState<Room | null>(null);
   const [newRoomName, setNewRoomName] = useState('');
   const [newRoomColor, setNewRoomColor] = useState('#3b82f6');
   const [newRoomDescription, setNewRoomDescription] = useState('');
@@ -113,10 +110,8 @@ export default function AdminDashboard() {
       setSettings(settingsData);
       setSettingsDraft({
         timeZone: settingsData.timeZone || '',
-        pollIntervalSeconds: settingsData.pollIntervalSeconds,
         bookingDurations: settingsData.bookingDurations.join(', '),
-        extendIncrements: settingsData.extendIncrements.join(', '),
-        layoutColumns: settingsData.layoutColumns ?? 3
+        extendIncrements: settingsData.extendIncrements.join(', ')
       });
     } catch (err) {
       setError('Failed to load data');
@@ -185,28 +180,14 @@ export default function AdminDashboard() {
       return;
     }
 
-    if (settingsDraft.pollIntervalSeconds <= 0) {
-      setError('Polling interval must be greater than 0');
-      setSettingsSaving(false);
-      return;
-    }
-
-    if (settingsDraft.layoutColumns <= 0) {
-      setError('Layout columns must be at least 1');
-      setSettingsSaving(false);
-      return;
-    }
-
     try {
       const response = await fetch('/api/admin/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           timeZone: settingsDraft.timeZone || null,
-          pollIntervalSeconds: settingsDraft.pollIntervalSeconds,
           bookingDurations,
-          extendIncrements,
-          layoutColumns: settingsDraft.layoutColumns
+          extendIncrements
         })
       });
 
@@ -225,48 +206,42 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleMoveRoom = async (roomId: string, direction: 'up' | 'down') => {
-    const sortedRooms = [...rooms].sort(
-      (a, b) => a.displayOrder - b.displayOrder
-    );
-    const currentIndex = sortedRooms.findIndex((room) => room.id === roomId);
-    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+  const handleEditRoom = (room: Room) => {
+    setEditingRoom(room);
+    setNewRoomName(room.name);
+    setNewRoomColor(room.color || '#3b82f6');
+    setNewRoomDescription(room.description || '');
+  };
 
-    if (
-      currentIndex === -1 ||
-      targetIndex < 0 ||
-      targetIndex >= sortedRooms.length
-    ) {
-      return;
-    }
+  const handleUpdateRoom = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingRoom) return;
 
-    const currentRoom = sortedRooms[currentIndex];
-    const targetRoom = sortedRooms[targetIndex];
+    setError('');
 
     try {
-      const updates = [
-        fetch(`/api/admin/rooms/${currentRoom.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ displayOrder: targetRoom.displayOrder })
-        }),
-        fetch(`/api/admin/rooms/${targetRoom.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ displayOrder: currentRoom.displayOrder })
+      const response = await fetch(`/api/admin/rooms/${editingRoom.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newRoomName,
+          color: newRoomColor,
+          description: newRoomDescription || null
         })
-      ];
+      });
 
-      const responses = await Promise.all(updates);
-      if (responses.some((res) => !res.ok)) {
-        throw new Error('Failed to update room order');
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to update room');
       }
 
+      setNewRoomName('');
+      setNewRoomColor('#3b82f6');
+      setNewRoomDescription('');
+      setEditingRoom(null);
       await loadData();
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Failed to update room order'
-      );
+      setError(err instanceof Error ? err.message : 'Failed to update room');
     }
   };
 
@@ -314,26 +289,8 @@ export default function AdminDashboard() {
   };
 
 
-  const handleToggleActive = async (roomId: string, isActive: boolean) => {
-    try {
-      const response = await fetch(`/api/admin/rooms/${roomId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isActive: !isActive })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update room');
-      }
-
-      await loadData();
-    } catch (err) {
-      setError('Failed to update room');
-    }
-  };
-
   const handleDeleteRoom = async (roomId: string) => {
-    if (!confirm('Are you sure you want to delete this room?')) {
+    if (!confirm('Are you sure you want to delete this room? This action cannot be undone.')) {
       return;
     }
 
@@ -346,7 +303,8 @@ export default function AdminDashboard() {
         throw new Error('Failed to delete room');
       }
 
-      await loadData();
+      // Remove from local state immediately
+      setRooms((prev) => prev.filter((room) => room.id !== roomId));
     } catch (err) {
       setError('Failed to delete room');
     }
@@ -502,6 +460,70 @@ export default function AdminDashboard() {
                   </form>
                 </DialogContent>
               </Dialog>
+              <Dialog open={!!editingRoom} onOpenChange={(open) => !open && setEditingRoom(null)}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Edit Room</DialogTitle>
+                    <DialogDescription>
+                      Update room details
+                    </DialogDescription>
+                  </DialogHeader>
+                  <form onSubmit={handleUpdateRoom}>
+                    <div className="space-y-4 py-4">
+                      <div>
+                        <label className="text-sm font-medium">
+                          Room Name *
+                        </label>
+                        <Input
+                          value={newRoomName}
+                          onChange={(e) => setNewRoomName(e.target.value)}
+                          placeholder="e.g., Conference Room A"
+                          required
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">
+                          Description
+                        </label>
+                        <Input
+                          value={newRoomDescription}
+                          onChange={(e) => setNewRoomDescription(e.target.value)}
+                          placeholder="Optional description"
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">Color</label>
+                        <div className="mt-1 flex gap-2">
+                          <Input
+                            type="color"
+                            value={newRoomColor}
+                            onChange={(e) => setNewRoomColor(e.target.value)}
+                            className="h-10 w-20"
+                          />
+                          <Input
+                            value={newRoomColor}
+                            onChange={(e) => setNewRoomColor(e.target.value)}
+                            placeholder="#3b82f6"
+                            className="flex-1"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setEditingRoom(null)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button type="submit">Update Room</Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
             </div>
           </CardHeader>
           <CardContent>
@@ -534,30 +556,12 @@ export default function AdminDashboard() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleMoveRoom(room.id, 'up')}
-                        disabled={index === 0}
+                        onClick={() => handleEditRoom(room)}
                       >
-                        Move Up
+                        Edit
                       </Button>
                       <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleMoveRoom(room.id, 'down')}
-                        disabled={index === rooms.length - 1}
-                      >
-                        Move Down
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          handleToggleActive(room.id, room.isActive)
-                        }
-                      >
-                        {room.isActive ? 'Deactivate' : 'Activate'}
-                      </Button>
-                      <Button
-                        variant="outline"
+                        variant="destructive"
                         size="sm"
                         onClick={() => handleDeleteRoom(room.id)}
                       >
@@ -666,45 +670,11 @@ export default function AdminDashboard() {
           <CardHeader>
             <CardTitle>Settings</CardTitle>
             <CardDescription>
-              Update booking rules, polling, and layout configuration
+              Update booking rules and configuration
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <label className="text-sm font-medium">
-                  Polling Interval (seconds)
-                </label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={settingsDraft.pollIntervalSeconds}
-                  onChange={(e) =>
-                    setSettingsDraft((prev) => ({
-                      ...prev,
-                      pollIntervalSeconds: Number(e.target.value)
-                    }))
-                  }
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">
-                  Layout Columns (board)
-                </label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={settingsDraft.layoutColumns}
-                  onChange={(e) =>
-                    setSettingsDraft((prev) => ({
-                      ...prev,
-                      layoutColumns: Number(e.target.value)
-                    }))
-                  }
-                  className="mt-1"
-                />
-              </div>
               <div>
                 <label className="text-sm font-medium">Time Zone</label>
                 <Input

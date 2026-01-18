@@ -49,7 +49,6 @@ interface BoardState {
   rooms: Room[];
   bookingDurations: number[];
   extendIncrements: number[];
-  layoutColumns: number;
 }
 
 export default function BoardPage({
@@ -351,7 +350,17 @@ export default function BoardPage({
             >
               {boardState && (
                 <LayoutViewer
-                  rooms={boardState.rooms}
+                  rooms={boardState.rooms.map((room) => ({
+                    ...room,
+                    currentBooking: room.currentBooking ? {
+                      title: room.currentBooking.title,
+                      endTime: room.currentBooking.endTime
+                    } : undefined,
+                    nextBooking: room.nextBooking ? {
+                      title: room.nextBooking.title,
+                      startTime: room.nextBooking.startTime
+                    } : undefined
+                  }))}
                   canvasWidth={canvasSize.width}
                   canvasHeight={canvasSize.height}
                   onRoomClick={(roomId) => {
@@ -365,75 +374,6 @@ export default function BoardPage({
             </div>
           </CardContent>
         </Card>
-
-        <div
-          className="grid gap-4"
-          style={{
-            gridTemplateColumns: `repeat(${
-              Math.max(1, boardState?.layoutColumns || 3)
-            }, minmax(0, 1fr))`
-          }}
-        >
-          {boardState?.rooms.map((room) => (
-            <Card
-              key={room.id}
-              className={`cursor-pointer transition-all hover:shadow-lg ${
-                room.status === 'free'
-                  ? 'border-green-300 bg-green-50'
-                  : 'border-red-300 bg-red-50'
-              }`}
-              onClick={() => handleRoomClick(room)}
-            >
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <div
-                    className="h-12 w-12 rounded-lg"
-                    style={{ backgroundColor: room.color || '#3b82f6' }}
-                  />
-                  <div className="flex-1">
-                    <CardTitle className="text-2xl">{room.name}</CardTitle>
-                    <div
-                      className={`mt-1 text-lg font-semibold ${
-                        room.status === 'free'
-                          ? 'text-green-700'
-                          : 'text-red-700'
-                      }`}
-                    >
-                      {room.status === 'free' ? 'Available' : 'Occupied'}
-                    </div>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {room.currentBooking && (
-                  <div className="space-y-1">
-                    <p className="font-medium">{room.currentBooking.title}</p>
-                    <p className="text-sm text-muted-foreground">
-                      Until {formatTime(room.currentBooking.endTime)}
-                    </p>
-                    <p className="text-sm font-medium text-red-600">
-                      {getTimeRemaining(room.currentBooking.endTime)}
-                    </p>
-                  </div>
-                )}
-                {!room.currentBooking && room.nextBooking && (
-                  <div className="space-y-1">
-                    <p className="text-sm text-muted-foreground">Next booking:</p>
-                    <p className="font-medium">{room.nextBooking.title}</p>
-                    <p className="text-sm text-muted-foreground">
-                      At {formatTime(room.nextBooking.startTime)}
-                    </p>
-                  </div>
-                )}
-                {!room.currentBooking && !room.nextBooking && (
-                  <p className="text-sm text-muted-foreground">
-                    Free all day
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
 
         {/* Booking Modal */}
         <Dialog

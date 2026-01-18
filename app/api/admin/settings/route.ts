@@ -21,8 +21,6 @@ export async function GET() {
 
     return NextResponse.json({
       timeZone: settings.timeZone,
-      pollIntervalSeconds: settings.pollIntervalSeconds,
-      layoutColumns: settings.layoutColumns,
       bookingDurations: settings.bookingDurations,
       extendIncrements: settings.extendIncrements,
       boardPublicUrl
@@ -47,8 +45,6 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const {
       timeZone,
-      pollIntervalSeconds,
-      layoutColumns,
       bookingDurations,
       extendIncrements
     } = body;
@@ -63,9 +59,6 @@ export async function PUT(request: NextRequest) {
 
     const updateData: any = {};
     if (timeZone !== undefined) updateData.timeZone = timeZone;
-    if (pollIntervalSeconds !== undefined)
-      updateData.pollIntervalSeconds = pollIntervalSeconds;
-    if (layoutColumns !== undefined) updateData.layoutColumns = layoutColumns;
     if (bookingDurations !== undefined)
       updateData.bookingDurations = bookingDurations;
     if (extendIncrements !== undefined)

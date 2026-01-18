@@ -100,18 +100,10 @@ export async function DELETE(
       return NextResponse.json({ error: 'Room not found' }, { status: 404 });
     }
 
-    // If room has active bookings, deactivate instead of delete
-    if (room.bookings.length > 0) {
-      await prisma.room.update({
-        where: { id: roomId },
-        data: { isActive: false }
-      });
-    } else {
-      // No active bookings, safe to delete
-      await prisma.room.delete({
-        where: { id: roomId }
-      });
-    }
+    // Delete the room (cascade will handle bookings)
+    await prisma.room.delete({
+      where: { id: roomId }
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

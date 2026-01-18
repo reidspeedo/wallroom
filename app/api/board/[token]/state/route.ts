@@ -88,8 +88,7 @@ export async function GET(
       serverTime: now.toISOString(),
       rooms: roomsWithStatus,
       bookingDurations: settings.bookingDurations,
-      extendIncrements: settings.extendIncrements,
-      layoutColumns: settings.layoutColumns
+      extendIncrements: settings.extendIncrements
     });
   } catch (error) {
     console.error('Board state error:', error);
