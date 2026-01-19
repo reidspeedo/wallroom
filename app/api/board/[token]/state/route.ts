@@ -91,6 +91,7 @@ export async function GET(
           layoutY: room.layoutY,
           layoutW: room.layoutW,
           layoutH: room.layoutH,
+          features: room.features || [],
           dayBookings: (bookingsByRoom[room.id] || []).map((booking) => ({
             id: booking.id,
             title: booking.title,

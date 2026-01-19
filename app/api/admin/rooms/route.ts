@@ -24,6 +24,7 @@ export async function GET() {
         layoutW: room.layoutW,
         layoutH: room.layoutH,
         capacity: room.capacity,
+        features: room.features || [],
         createdAt: room.createdAt.toISOString(),
         updatedAt: room.updatedAt.toISOString()
       }))

@@ -22,6 +22,7 @@ interface Room {
   currentBooking?: Booking;
   nextBooking?: Booking;
   dayBookings?: Booking[];
+  features?: string[];
 }
 
 interface SlideOverPanelProps {
@@ -166,9 +167,11 @@ export function SlideOverPanel({
                   <span>{room.capacity} {room.capacity === 1 ? 'seat' : 'seats'}</span>
                 </div>
               )}
-              <div className="flex items-center gap-2 text-sm text-slate-600">
-                <span>Features: Zoom, TV, Whiteboard</span>
-              </div>
+              {room.features && room.features.length > 0 && (
+                <div className="flex items-center gap-2 text-sm text-slate-600">
+                  <span>Features: {room.features.join(', ')}</span>
+                </div>
+              )}
             </div>
 
             {/* Current Booking */}

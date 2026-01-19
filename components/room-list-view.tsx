@@ -6,7 +6,9 @@ import { Button } from '@/components/ui/button';
 interface Room {
   id: string;
   name: string;
+  color: string | null;
   capacity: number | null;
+  isActive: boolean;
   status: 'free' | 'occupied';
   currentBooking?: {
     title: string;
@@ -16,6 +18,12 @@ interface Room {
     title: string;
     startTime: string;
   };
+  dayBookings?: Array<{
+    id: string;
+    title: string;
+    startTime: string;
+    endTime: string;
+  }>;
 }
 
 interface RoomListViewProps {

@@ -39,6 +39,7 @@ model Room {
   layoutW      Int       @default(20) @map("layout_w")
   layoutH      Int       @default(20) @map("layout_h")
   capacity     Int?
+  features     String[]  @default([])
   bookings     Booking[]
 
   @@index([isActive, displayOrder])

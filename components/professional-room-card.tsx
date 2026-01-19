@@ -51,7 +51,7 @@ export function ProfessionalRoomCard({ room, onClick }: ProfessionalRoomCardProp
       return {
         label: 'Available now',
         color: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-        timeText: 'Available now'
+        timeText: ''
       };
     } else {
       const endTime = new Date(room.currentBooking!.endTime);
@@ -104,10 +104,12 @@ export function ProfessionalRoomCard({ room, onClick }: ProfessionalRoomCardProp
           )}
 
           {/* Time info */}
-          <div className="flex items-center gap-1.5 text-xs text-slate-500">
-            <Clock className="h-3 w-3" />
-            <span>{statusInfo.timeText}</span>
-          </div>
+          {statusInfo.timeText && (
+            <div className="flex items-center gap-1.5 text-xs text-slate-500">
+              <Clock className="h-3 w-3" />
+              <span>{statusInfo.timeText}</span>
+            </div>
+          )}
 
           {/* Current booking title if occupied */}
           {!isFree && room.currentBooking && (

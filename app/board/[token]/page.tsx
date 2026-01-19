@@ -3,7 +3,6 @@
 import { useEffect, useState, use, useRef } from 'react';
 import { ControlBar } from '@/components/control-bar';
 import { ProfessionalLayoutViewer } from '@/components/professional-layout-viewer';
-import { RoomListView } from '@/components/room-list-view';
 import { SlideOverPanel } from '@/components/slide-over-panel';
 
 interface Booking {
@@ -25,6 +24,7 @@ interface Room {
   currentBooking?: Booking;
   nextBooking?: Booking;
   dayBookings?: Booking[];
+  features?: string[];
   layoutX?: number;
   layoutY?: number;
   layoutW?: number;
@@ -49,11 +49,7 @@ export default function BoardPage({
   const [loading, setLoading] = useState(true);
 
   // View state
-  const [viewMode, setViewMode] = useState<'floorplan' | 'list'>('floorplan');
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [timeRange, setTimeRange] = useState<'now' | 'next30' | 'custom'>('now');
-  const [showAvailableOnly, setShowAvailableOnly] = useState(false);
-  const [minCapacity, setMinCapacity] = useState<number>(0);
 
   // Panel state
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
@@ -196,12 +192,8 @@ export default function BoardPage({
     }
   };
 
-  // Filter rooms based on filters
-  const filteredRooms = boardState?.rooms.filter(room => {
-    if (showAvailableOnly && room.status !== 'free') return false;
-    if (minCapacity > 0 && (room.capacity === null || room.capacity < minCapacity)) return false;
-    return true;
-  }) || [];
+  // All rooms are shown (no filtering)
+  const filteredRooms = boardState?.rooms || [];
 
   if (loading) {
     return (
@@ -246,16 +238,8 @@ export default function BoardPage({
       {/* Control Bar */}
       {boardState && (
         <ControlBar
-          viewMode={viewMode}
-          onViewModeChange={setViewMode}
-          showAvailableOnly={showAvailableOnly}
-          onShowAvailableOnlyChange={setShowAvailableOnly}
-          minCapacity={minCapacity}
-          onMinCapacityChange={setMinCapacity}
           selectedDate={selectedDate}
           onDateChange={setSelectedDate}
-          timeRange={timeRange}
-          onTimeRangeChange={setTimeRange}
         />
       )}
 
@@ -267,49 +251,35 @@ export default function BoardPage({
           </div>
         )}
 
-        {viewMode === 'floorplan' ? (
-          /* Floorplan View */
-          <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
-            <div
-              ref={layoutContainerRef}
-              className="w-full overflow-hidden rounded-lg bg-slate-50 p-6"
-            >
-              {boardState && (
-                <ProfessionalLayoutViewer
-                  rooms={filteredRooms.map((room) => ({
-                    ...room,
-                    currentBooking: room.currentBooking ? {
-                      title: room.currentBooking.title,
-                      endTime: room.currentBooking.endTime
-                    } : undefined,
-                    nextBooking: room.nextBooking ? {
-                      title: room.nextBooking.title,
-                      startTime: room.nextBooking.startTime
-                    } : undefined
-                  }))}
-                  canvasWidth={canvasSize.width}
-                  canvasHeight={canvasSize.height}
-                  onRoomClick={(roomId) => {
-                    const room = boardState.rooms.find((r) => r.id === roomId);
-                    if (room) handleRoomClick(room);
-                  }}
-                />
-              )}
-            </div>
-          </div>
-        ) : (
-          /* List View */
-          <div>
+        {/* Floorplan View */}
+        <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div
+            ref={layoutContainerRef}
+            className="w-full overflow-hidden rounded-lg bg-slate-50 p-6"
+          >
             {boardState && (
-              <RoomListView
-                rooms={filteredRooms}
-                onRoomClick={handleRoomClick}
-                bookingDurations={boardState.bookingDurations}
-                onQuickBook={handleQuickBook}
+              <ProfessionalLayoutViewer
+                rooms={filteredRooms.map((room) => ({
+                  ...room,
+                  currentBooking: room.currentBooking ? {
+                    title: room.currentBooking.title,
+                    endTime: room.currentBooking.endTime
+                  } : undefined,
+                  nextBooking: room.nextBooking ? {
+                    title: room.nextBooking.title,
+                    startTime: room.nextBooking.startTime
+                  } : undefined
+                }))}
+                canvasWidth={canvasSize.width}
+                canvasHeight={canvasSize.height}
+                onRoomClick={(roomId) => {
+                  const room = boardState.rooms.find((r) => r.id === roomId);
+                  if (room) handleRoomClick(room);
+                }}
               />
             )}
           </div>
-        )}
+        </div>
       </div>
 
       {/* Slide-Over Panel */}

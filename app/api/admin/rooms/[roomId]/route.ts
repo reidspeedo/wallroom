@@ -22,7 +22,8 @@ export async function PUT(
       layoutX,
       layoutY,
       layoutW,
-      layoutH
+      layoutH,
+      features
     } = body;
 
     // Check if room exists
@@ -46,6 +47,7 @@ export async function PUT(
     if (layoutY !== undefined) updateData.layoutY = layoutY;
     if (layoutW !== undefined) updateData.layoutW = layoutW;
     if (layoutH !== undefined) updateData.layoutH = layoutH;
+    if (features !== undefined) updateData.features = Array.isArray(features) ? features : [];
 
     const room = await prisma.room.update({
       where: { id: roomId },
@@ -64,7 +66,8 @@ export async function PUT(
         layoutX: room.layoutX,
         layoutY: room.layoutY,
         layoutW: room.layoutW,
-        layoutH: room.layoutH
+        layoutH: room.layoutH,
+        features: room.features || []
       }
     });
   } catch (error) {

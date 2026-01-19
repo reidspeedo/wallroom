@@ -30,6 +30,7 @@ interface Room {
   isActive: boolean;
   displayOrder: number;
   capacity?: number | null;
+  features?: string[];
   layoutX: number;
   layoutY: number;
   layoutW: number;
@@ -70,6 +71,7 @@ export default function AdminDashboard() {
   const [newRoomColor, setNewRoomColor] = useState('#8ea2c2');
   const [newRoomDescription, setNewRoomDescription] = useState('');
   const [newRoomCapacity, setNewRoomCapacity] = useState<number | ''>('');
+  const [newRoomFeatures, setNewRoomFeatures] = useState<string>('');
 
   useEffect(() => {
     loadData();
@@ -214,6 +216,7 @@ export default function AdminDashboard() {
     setNewRoomColor(room.color || '#8ea2c2');
     setNewRoomDescription(room.description || '');
     setNewRoomCapacity(room.capacity || '');
+    setNewRoomFeatures(room.features?.join(', ') || '');
   };
 
   const handleUpdateRoom = async (e: React.FormEvent) => {
@@ -223,6 +226,11 @@ export default function AdminDashboard() {
     setError('');
 
     try {
+      const featuresArray = newRoomFeatures
+        .split(',')
+        .map(f => f.trim())
+        .filter(f => f.length > 0);
+
       const response = await fetch(`/api/admin/rooms/${editingRoom.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -230,7 +238,8 @@ export default function AdminDashboard() {
           name: newRoomName,
           color: newRoomColor,
           description: newRoomDescription || null,
-          capacity: newRoomCapacity ? Number(newRoomCapacity) : null
+          capacity: newRoomCapacity ? Number(newRoomCapacity) : null,
+          features: featuresArray
         })
       });
 
@@ -242,6 +251,8 @@ export default function AdminDashboard() {
       setNewRoomName('');
       setNewRoomColor('#8ea2c2');
       setNewRoomDescription('');
+      setNewRoomCapacity('');
+      setNewRoomFeatures('');
       setEditingRoom(null);
       await loadData();
     } catch (err) {
@@ -545,6 +556,16 @@ export default function AdminDashboard() {
                             className="flex-1 border-slate-200 bg-white font-mono focus:border-blue-500 focus:ring-blue-500/20"
                           />
                         </div>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-slate-700">Features</label>
+                        <Input
+                          value={newRoomFeatures}
+                          onChange={(e) => setNewRoomFeatures(e.target.value)}
+                          placeholder="e.g., Zoom, TV, Whiteboard (comma-separated)"
+                          className="mt-1 border-slate-200 bg-white focus:border-blue-500 focus:ring-blue-500/20"
+                        />
+                        <p className="mt-1 text-xs text-slate-500">Enter features separated by commas</p>
                       </div>
                     </div>
                     <DialogFooter>
