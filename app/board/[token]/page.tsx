@@ -4,6 +4,8 @@ import { useEffect, useState, use, useRef } from 'react';
 import { ControlBar } from '@/components/control-bar';
 import { ProfessionalLayoutViewer } from '@/components/professional-layout-viewer';
 import { SlideOverPanel } from '@/components/slide-over-panel';
+import { AppHeader } from '@/components/app-header';
+import { Footer } from '@/components/footer';
 
 interface Booking {
   id: string;
@@ -106,17 +108,6 @@ export default function BoardPage({
     setPanelOpen(true);
   };
 
-  const handleQuickBook = async (roomId: string, duration: number) => {
-    const room = boardState?.rooms.find(r => r.id === roomId);
-    if (!room) return;
-
-    const now = new Date();
-    const startTime = new Date(now);
-    startTime.setMinutes(Math.ceil(startTime.getMinutes() / 15) * 15, 0, 0);
-
-    await handleBook(roomId, duration, startTime.toISOString(), 'Quick Booking');
-  };
-
   const handleBook = async (
     roomId: string,
     duration: number,
@@ -199,7 +190,7 @@ export default function BoardPage({
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
         <div className="text-center">
-          <p className="text-lg font-medium text-slate-900">Loading meeting rooms...</p>
+          <p className="text-lg font-medium text-slate-900">Loading wallBoard...</p>
           <p className="mt-2 text-sm text-slate-600">Please wait</p>
         </div>
       </div>
@@ -226,14 +217,9 @@ export default function BoardPage({
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
-      <div className="border-b border-slate-200 bg-white">
-        <div className="mx-auto max-w-7xl px-6 py-6">
-          <h1 className="text-2xl font-semibold text-slate-900">Meeting Rooms</h1>
-          <p className="mt-1 text-sm text-slate-600">
-            {boardState && `Last updated ${new Date(boardState.serverTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
-          </p>
-        </div>
-      </div>
+      <AppHeader 
+        subtitle={boardState ? `Last updated ${new Date(boardState.serverTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : undefined}
+      />
 
       {/* Control Bar */}
       {boardState && (
@@ -299,6 +285,9 @@ export default function BoardPage({
           isLoading={actionLoading}
         />
       )}
+
+      {/* Footer */}
+      <Footer />
     </div>
   );
 }

@@ -3,9 +3,9 @@ import './globals.css';
 import { Analytics } from '@vercel/analytics/react';
 
 export const metadata = {
-  title: 'WallBoard Rooms',
+  title: 'wallBoard',
   description:
-    'A simple, always-on web dashboard for live room availability and instant booking.'
+    'Live room availability and instant booking dashboard.'
 };
 
 export default function RootLayout({

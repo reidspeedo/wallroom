@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { LayoutEditor } from '@/components/layout-editor';
+import { Logo } from '@/components/logo';
+import { Settings } from 'lucide-react';
+import { SettingsPanel } from '@/components/settings-panel';
 import {
   Card,
   CardContent,
@@ -53,6 +56,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsPanelOpen, setSettingsPanelOpen] = useState(false);
   const [settingsDraft, setSettingsDraft] = useState({
     timeZone: '',
     bookingDurations: '',
@@ -345,20 +349,38 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
       <div className="mx-auto max-w-7xl space-y-8 p-8">
         <div className="flex items-center justify-between border-b border-slate-200 pb-6">
-          <div>
-            <h1 className="text-4xl font-semibold tracking-tight text-slate-900">Admin Dashboard</h1>
-            <p className="mt-2 text-base text-slate-600">
-              Manage rooms, settings, and view bookings
-            </p>
+          <div className="flex items-center gap-4">
+            <Logo />
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Admin Dashboard</h1>
+              <p className="mt-1 text-sm text-slate-600">
+                Manage rooms, settings, and view bookings
+              </p>
+            </div>
           </div>
-          <Button 
-            variant="outline" 
-            onClick={handleLogout}
-            className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900"
-          >
-            Logout
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button 
+              variant="outline" 
+              onClick={() => setSettingsPanelOpen(true)}
+              className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+            >
+              <Settings className="h-4 w-4 mr-2" />
+              Settings
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={handleLogout}
+              className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+            >
+              Logout
+            </Button>
+          </div>
         </div>
+
+        <SettingsPanel 
+          open={settingsPanelOpen} 
+          onClose={() => setSettingsPanelOpen(false)} 
+        />
 
         {error && (
           <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 shadow-soft">
