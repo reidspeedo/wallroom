@@ -7,10 +7,9 @@ import { SettingsPanel } from './settings-panel';
 
 interface AppHeaderProps {
   showSettings?: boolean;
-  subtitle?: string;
 }
 
-export function AppHeader({ showSettings = true, subtitle }: AppHeaderProps) {
+export function AppHeader({ showSettings = true }: AppHeaderProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   
   return (
@@ -18,14 +17,7 @@ export function AppHeader({ showSettings = true, subtitle }: AppHeaderProps) {
       <header className="border-b border-slate-200 bg-white shadow-sm">
         <div className="mx-auto max-w-7xl px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Logo />
-              {subtitle && (
-                <p className="text-sm font-medium text-slate-500 hidden sm:block">
-                  {subtitle}
-                </p>
-              )}
-            </div>
+            <Logo />
             {showSettings && (
               <button
                 onClick={() => setSettingsOpen(true)}

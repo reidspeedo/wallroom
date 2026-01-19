@@ -217,15 +217,14 @@ export default function BoardPage({
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
-      <AppHeader 
-        subtitle={boardState ? `Last updated ${new Date(boardState.serverTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : undefined}
-      />
+      <AppHeader />
 
       {/* Control Bar */}
       {boardState && (
         <ControlBar
           selectedDate={selectedDate}
           onDateChange={setSelectedDate}
+          lastUpdated={new Date(boardState.serverTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         />
       )}
 

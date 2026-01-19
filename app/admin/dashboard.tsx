@@ -6,8 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { LayoutEditor } from '@/components/layout-editor';
 import { Logo } from '@/components/logo';
-import { Settings } from 'lucide-react';
+import { Settings, MoreVertical, Copy, ExternalLink, Plus, Edit2, Trash2, Share2, LogOut } from 'lucide-react';
 import { SettingsPanel } from '@/components/settings-panel';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Card,
   CardContent,
@@ -76,6 +82,7 @@ export default function AdminDashboard() {
   const [newRoomDescription, setNewRoomDescription] = useState('');
   const [newRoomCapacity, setNewRoomCapacity] = useState<number | ''>('');
   const [newRoomFeatures, setNewRoomFeatures] = useState<string>('');
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -345,35 +352,48 @@ export default function AdminDashboard() {
 
   const activeLayoutRoom = rooms.find((room) => room.id === activeLayoutRoomId);
 
+  const handleCopyUrl = async () => {
+    if (settings?.boardPublicUrl) {
+      await navigator.clipboard.writeText(settings.boardPublicUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
-      <div className="mx-auto max-w-7xl space-y-8 p-8">
-        <div className="flex items-center justify-between border-b border-slate-200 pb-6">
-          <div className="flex items-center gap-4">
-            <Logo />
-            <div>
-              <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Admin Dashboard</h1>
-              <p className="mt-1 text-sm text-slate-600">
-                Manage rooms, settings, and view bookings
-              </p>
-            </div>
+    <div className="min-h-screen bg-slate-50">
+      <div className="mx-auto max-w-7xl space-y-6 p-6">
+        {/* Header */}
+        <div className="flex items-start justify-between border-b border-slate-200 pb-6">
+          <div>
+            <Logo className="mb-3" />
+            <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Admin Dashboard</h1>
+            <p className="mt-1 text-sm text-slate-600">
+              Manage rooms, settings, and view bookings
+            </p>
           </div>
-          <div className="flex items-center gap-3">
-            <Button 
-              variant="outline" 
-              onClick={() => setSettingsPanelOpen(true)}
-              className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-            >
-              <Settings className="h-4 w-4 mr-2" />
-              Settings
-            </Button>
-            <Button 
-              variant="outline" 
-              onClick={handleLogout}
-              className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900"
-            >
-              Logout
-            </Button>
+          <div className="flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                >
+                  <Settings className="h-4 w-4 mr-2" />
+                  Settings
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={() => setSettingsPanelOpen(true)}>
+                  <Settings className="h-4 w-4 mr-2" />
+                  Configuration
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleLogout} variant="destructive">
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
@@ -388,61 +408,75 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Board URL Card */}
-        <Card className="border-slate-200 bg-white shadow-elevated">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-xl font-semibold text-slate-900">Public Board URL</CardTitle>
-            <CardDescription className="text-slate-600">
-              Share this URL to access the public booking board
-            </CardDescription>
+        {/* Share Card */}
+        <Card className="border-slate-200 bg-gradient-to-br from-blue-50 to-indigo-50 shadow-lg">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                  <Share2 className="h-5 w-5 text-blue-600" />
+                  Public Board
+                </CardTitle>
+                <CardDescription className="text-slate-600 mt-1">
+                  Share this URL with your team
+                </CardDescription>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2 bg-white rounded-lg border border-slate-200 p-3">
               <Input
                 readOnly
                 value={settings?.boardPublicUrl || ''}
-                className="font-mono text-sm"
+                className="font-mono text-sm border-0 bg-transparent p-0 focus-visible:ring-0"
               />
-              <Button
-                variant="outline"
-                onClick={() =>
-                  settings?.boardPublicUrl &&
-                  navigator.clipboard.writeText(settings.boardPublicUrl)
-                }
-                className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-              >
-                Copy
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() =>
-                  settings?.boardPublicUrl &&
-                  window.open(settings.boardPublicUrl, '_blank')
-                }
-                className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-              >
-                Open
-              </Button>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleCopyUrl}
+                  className="h-8 px-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                >
+                  {copied ? (
+                    <>
+                      <span className="text-green-600">✓</span>
+                    </>
+                  ) : (
+                    <Copy className="h-4 w-4" />
+                  )}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() =>
+                    settings?.boardPublicUrl &&
+                    window.open(settings.boardPublicUrl, '_blank')
+                  }
+                  className="h-8 px-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Rooms Management */}
-        <Card className="border-slate-200 bg-white shadow-elevated">
-          <CardHeader className="pb-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-xl font-semibold text-slate-900">Meeting Rooms</CardTitle>
-                <CardDescription className="text-slate-600">
-                  Create rooms and configure their layout order
-                </CardDescription>
-              </div>
-              <Dialog open={isAddingRoom} onOpenChange={setIsAddingRoom}>
-                <DialogTrigger asChild>
-                  <Button className="gradient-primary shadow-soft hover:opacity-90">
-                    Add Room
-                  </Button>
-                </DialogTrigger>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-semibold text-slate-900">Rooms</h2>
+              <p className="text-sm text-slate-600 mt-0.5">
+                {rooms.length} {rooms.length === 1 ? 'room' : 'rooms'} configured
+              </p>
+            </div>
+            <Dialog open={isAddingRoom} onOpenChange={setIsAddingRoom}>
+              <DialogTrigger asChild>
+                <Button className="bg-blue-600 text-white hover:bg-blue-700 shadow-sm">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Room
+                </Button>
+              </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Add New Room</DialogTitle>
@@ -605,57 +639,97 @@ export default function AdminDashboard() {
                 </DialogContent>
               </Dialog>
             </div>
-          </CardHeader>
-          <CardContent>
-            {rooms.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">
-                No rooms yet. Click "Add Room" to create your first room.
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {rooms.map((room, index) => (
-                  <div
-                    key={room.id}
-                    className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-5 shadow-soft transition-all hover:shadow-elevated"
-                  >
-                    <div className="flex items-center gap-3">
+        </div>
+
+        {rooms.length === 0 ? (
+          <Card className="border-slate-200 bg-white">
+            <CardContent className="py-12">
+              <div className="text-center">
+                <div className="mx-auto h-12 w-12 rounded-full bg-slate-100 flex items-center justify-center mb-4">
+                  <Plus className="h-6 w-6 text-slate-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-slate-900 mb-2">No rooms yet</h3>
+                <p className="text-slate-600 mb-4">Get started by creating your first room</p>
+                <Button onClick={() => setIsAddingRoom(true)} className="bg-blue-600 text-white hover:bg-blue-700">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Room
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {rooms.map((room) => (
+              <Card
+                key={room.id}
+                className="border-slate-200 bg-white shadow-sm hover:shadow-md transition-shadow group"
+              >
+                <CardContent className="p-5">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
                       <div
-                        className="h-8 w-8 rounded"
+                        className="h-12 w-12 rounded-lg shadow-sm flex-shrink-0"
                         style={{ backgroundColor: room.color || '#8ea2c2' }}
                       />
-                      <div>
-                        <p className="font-medium">{room.name}</p>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-slate-900 truncate">{room.name}</h3>
                         {room.description && (
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-sm text-slate-500 truncate mt-0.5">
                             {room.description}
                           </p>
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEditRoom(room)}
-                        className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleDeleteRoom(room.id)}
-                        className="bg-red-600 text-white hover:bg-red-700"
-                      >
-                        Delete
-                      </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleEditRoom(room)}>
+                          <Edit2 className="h-4 w-4 mr-2" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => handleDeleteRoom(room.id)}
+                          variant="destructive"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                  
+                  <div className="space-y-2 pt-3 border-t border-slate-100">
+                    {room.capacity && (
+                      <div className="flex items-center gap-2 text-sm text-slate-600">
+                        <span className="font-medium">Capacity:</span>
+                        <span>{room.capacity} {room.capacity === 1 ? 'seat' : 'seats'}</span>
+                      </div>
+                    )}
+                    {room.features && room.features.length > 0 && (
+                      <div className="flex items-center gap-2 text-sm text-slate-600">
+                        <span className="font-medium">Features:</span>
+                        <span className="truncate">{room.features.join(', ')}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 text-xs text-slate-400">
+                      <span>Layout: {room.layoutX}%, {room.layoutY}%</span>
+                      <span>•</span>
+                      <span>Size: {room.layoutW}% × {room.layoutH}%</span>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
 
         {/* Layout Editor */}
         <Card className="border-slate-200 bg-white shadow-elevated">
@@ -748,12 +822,14 @@ export default function AdminDashboard() {
         </Card>
 
         {/* Settings */}
-        <Card className="border-slate-200 bg-white shadow-elevated">
+        <Card className="border-slate-200 bg-white shadow-sm">
           <CardHeader className="pb-4">
-            <CardTitle className="text-xl font-semibold text-slate-900">Settings</CardTitle>
-            <CardDescription className="text-slate-600">
-              Update booking rules and configuration
-            </CardDescription>
+            <div>
+              <CardTitle className="text-xl font-semibold text-slate-900">Configuration</CardTitle>
+              <CardDescription className="text-slate-600 mt-1">
+                Update booking rules and system settings
+              </CardDescription>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
