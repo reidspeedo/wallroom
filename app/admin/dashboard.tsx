@@ -134,6 +134,21 @@ export default function AdminDashboard() {
     }
   };
 
+  const resetRoomForm = () => {
+    setNewRoomName('');
+    setNewRoomColor('#8ea2c2');
+    setNewRoomDescription('');
+    setNewRoomCapacity('');
+    setNewRoomFeatures('');
+  };
+
+  const parseFeatures = (features: string): string[] => {
+    return features
+      .split(',')
+      .map(f => f.trim())
+      .filter(f => f.length > 0);
+  };
+
   const handleAddRoom = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -145,7 +160,9 @@ export default function AdminDashboard() {
         body: JSON.stringify({
           name: newRoomName,
           color: newRoomColor,
-          description: newRoomDescription || null
+          description: newRoomDescription || null,
+          capacity: newRoomCapacity ? Number(newRoomCapacity) : null,
+          features: parseFeatures(newRoomFeatures)
         })
       });
 
@@ -154,10 +171,7 @@ export default function AdminDashboard() {
         throw new Error(data.error || 'Failed to add room');
       }
 
-      setNewRoomName('');
-      setNewRoomColor('#8ea2c2');
-      setNewRoomDescription('');
-      setNewRoomCapacity('');
+      resetRoomForm();
       setIsAddingRoom(false);
       await loadData();
     } catch (err) {
@@ -237,11 +251,6 @@ export default function AdminDashboard() {
     setError('');
 
     try {
-      const featuresArray = newRoomFeatures
-        .split(',')
-        .map(f => f.trim())
-        .filter(f => f.length > 0);
-
       const response = await fetch(`/api/admin/rooms/${editingRoom.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -250,7 +259,7 @@ export default function AdminDashboard() {
           color: newRoomColor,
           description: newRoomDescription || null,
           capacity: newRoomCapacity ? Number(newRoomCapacity) : null,
-          features: featuresArray
+          features: parseFeatures(newRoomFeatures)
         })
       });
 
@@ -259,11 +268,7 @@ export default function AdminDashboard() {
         throw new Error(data.error || 'Failed to update room');
       }
 
-      setNewRoomName('');
-      setNewRoomColor('#8ea2c2');
-      setNewRoomDescription('');
-      setNewRoomCapacity('');
-      setNewRoomFeatures('');
+      resetRoomForm();
       setEditingRoom(null);
       await loadData();
     } catch (err) {
@@ -271,28 +276,16 @@ export default function AdminDashboard() {
     }
   };
 
-  const updateRoomLayout = (
-    roomId: string,
-    updates: Partial<Pick<Room, 'layoutX' | 'layoutY' | 'layoutW' | 'layoutH'>>
-  ) => {
-    setRooms((prev) =>
-      prev.map((room) =>
-        room.id === roomId
-          ? {
-              ...room,
-              ...updates
-            }
-          : room
-      )
-    );
-  };
-
   const handleRoomLayoutUpdate = async (
     roomId: string,
     updates: Partial<Pick<Room, 'layoutX' | 'layoutY' | 'layoutW' | 'layoutH'>>
   ) => {
     // Update local state immediately for responsive UI
-    updateRoomLayout(roomId, updates);
+    setRooms((prev) =>
+      prev.map((room) =>
+        room.id === roomId ? { ...room, ...updates } : room
+      )
+    );
 
     // Persist to server
     try {
@@ -309,11 +302,9 @@ export default function AdminDashboard() {
       setError(
         err instanceof Error ? err.message : 'Failed to update room layout'
       );
-      // Reload data on error to revert
       await loadData();
     }
   };
-
 
   const handleDeleteRoom = async (roomId: string) => {
     if (!confirm('Are you sure you want to delete this room? This action cannot be undone.')) {
@@ -438,9 +429,7 @@ export default function AdminDashboard() {
                   className="h-8 px-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100"
                 >
                   {copied ? (
-                    <>
-                      <span className="text-green-600">✓</span>
-                    </>
+                    <span className="text-green-600">✓</span>
                   ) : (
                     <Copy className="h-4 w-4" />
                   )}
@@ -536,6 +525,16 @@ export default function AdminDashboard() {
                             className="flex-1 border-slate-200 bg-white font-mono focus:border-blue-500 focus:ring-blue-500/20"
                           />
                         </div>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-slate-700">Features</label>
+                        <Input
+                          value={newRoomFeatures}
+                          onChange={(e) => setNewRoomFeatures(e.target.value)}
+                          placeholder="e.g., Zoom, TV, Whiteboard (comma-separated)"
+                          className="mt-1 border-slate-200 bg-white focus:border-blue-500 focus:ring-blue-500/20"
+                        />
+                        <p className="mt-1 text-xs text-slate-500">Enter features separated by commas</p>
                       </div>
                     </div>
                     <DialogFooter>
